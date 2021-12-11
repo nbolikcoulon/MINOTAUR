@@ -1,5 +1,7 @@
 # MINOTAUR
 
+MINOTAUR (Matching INtensities to Optimize the Timescales and AmplitUdes of motions from Relaxometry) aims at analyzing high-field accurate NMR relaxation rates together with relaxometry intensity decays recorded under shuttling conditions to yield an accurate description of the dynamic properties of the system under study. 
+
 1. Requirements
 MINOTAUR has to be run using Python 3. The following libraries need to be installed: corner, emcee, imageio, numpy, matplotlib, multiprocessing, PIL, scipy, tkinter. MINOTAUR is called using the following command in a terminal: python run.py. Alternatively, if the C-script are already compiled, you can run directly MINOTAUR by  writing  in a terminal: python MINOTAUR.py Path_to_folder, with Path_to_folder the path to the folder containing the C-scripts.
 
