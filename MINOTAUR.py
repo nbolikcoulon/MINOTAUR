@@ -720,9 +720,10 @@ class GUI(tk.Frame):
         
         self.PositionR1 = 0
         for i in range(len(self.RelaxFunc)):
-            if ParamFile.RelaxationRates[i] != "R1":
-                self.PositionR1 += 1
+            if ParamFile.RelaxationRates[i] == "R1":
                 break
+            self.PositionR1 += 1
+            
         
         
         GUI.PositionR1 = self.PositionR1
