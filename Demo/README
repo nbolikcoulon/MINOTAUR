@@ -1,0 +1,14 @@
+NOTE: This demo folder contains example of published experimental data. Some have been purposely removed for the sake of providing examples on how to adapt datasets when data are missing. 
+
+NH_EMF
+analysis of NH relaxation data using the extended model-free, and considering two remove protons. In experiment 5, we purposely modified the intensity of residue 2 to NA as an example. Note how the R2 at 18.8 T have also been modified with residue 4 missing from the file (assumed no reliable data). Alternatively, one can simply write NA as done for residue 2.
+This complete run took 4  min on a MacBook Pro (Sonoma) equiped with the M3 Pro Apple chip and 12 CPUs (4 residues, 7 low fields, 10 chains of 3,000 steps).
+
+CHD2_EMF
+analysis of CHD2 relaxation data using the extended model-free, and considering 
+remote deuteriums which effective position is set to the infinitely (in the other input file, see original publication for further details).
+This complete run took 4 min on a MacBook Pro (Sonoma) equiped with the M3 Pro Apple chip and 12 CPUs (2 residues, 22 low fields, 14 chains of 3,000 steps).
+
+CHD2_ExpModel
+We give here the example of Ile-30 which exchanges between two rotamer positions (see original publications). The C-scripts were originaly designed for model-fre type of spectral density functions, but can be adapted to explicit models of motions, as shown in this example.
+This complete run took 3 min on a MacBook Pro (Sonoma) equiped with the M3 Pro Apple chip and 12 CPUs (1 residue, 22 low fields, 10 chains of 1,000 steps).
