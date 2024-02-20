@@ -11,11 +11,9 @@
 #       - Low field R1                                                   #
 #                                                                        #
 ##########################################################################
-
-import FitFunctions as FitF
+from MonteCarlo import ScalingFactor
 import numpy as np
 import os
-
 
             
 def WritePreSavedParam(self, IcarusDir):
@@ -44,7 +42,6 @@ def WritePreSavedParam(self, IcarusDir):
     if hasattr(self, "InputFile"):
         InputPath = self.InputFile
         
-        
     Nchains = int(self.Nwalker.get())
     Nstep = int(self.Nmcmc.get())
 
@@ -52,170 +49,83 @@ def WritePreSavedParam(self, IcarusDir):
                 
     defaultVal.write("PRE SAVED\n")
         
-    defaultVal.write("Global tumbling correlation time\t")
-    defaultVal.write(str(TauC))
-
-    defaultVal.write("\n")
-    defaultVal.write("Acceleration type\t")
-    defaultVal.write(str(self.AccelerationTYPE.get()))
-    defaultVal.write("\n")
-    defaultVal.write("Number of chains\t")
-    defaultVal.write(str(Nchains))
-    defaultVal.write("\n")
-    defaultVal.write("Number of MCMC steps\t")
-    defaultVal.write(str(Nstep))
-    defaultVal.write("\n")
-    defaultVal.write("PDB ID\t")
-    defaultVal.write(self.PDBid.get())
-    defaultVal.write("\n")
-    defaultVal.write("Setup path\t")
-    defaultVal.write(str(ExperimentalSetUpPath))
-    defaultVal.write("\n")
-    defaultVal.write("Field calibration path\t")
-    defaultVal.write(str(FieldCalibrationPath))
-    defaultVal.write("\n")
-    defaultVal.write("Relaxometry data path\t")
-    defaultVal.write(str(IntRelaxoPath))
-    defaultVal.write("\n")
-    defaultVal.write("Ohter Input path\t")
-    defaultVal.write(str(InputPath))
-    defaultVal.write("\n")
+    defaultVal.write(f"Global tumbling correlation time\t{TauC}\n")
+    defaultVal.write(f"Shuttling type\t{self.Shuttling_TYPE.get()}\n")
+    defaultVal.write(f"Number of chains\t{Nchains}\n")
+    defaultVal.write(f"Number of MCMC steps\t{Nstep}\n")
+    defaultVal.write(f"PDB ID\t{self.PDBid.get()}\n")
+    defaultVal.write(f"Setup path\t{ExperimentalSetUpPath}\n")
+    defaultVal.write(f"Field calibration path\t{FieldCalibrationPath}\n")
+    defaultVal.write(f"Relaxometry data path\t{IntRelaxoPath}\n")
+    defaultVal.write(f"Ohter Input path\t{InputPath}\n")
         
     for i in range(len(self.OP)):
         mins2 = self.MinS2[i].get()
         maxs2 = self.MaxS2[i].get()
-        
-        defaultVal.write(self.OP[i])
-        defaultVal.write("\t")
-        defaultVal.write(str(mins2))
-        defaultVal.write("\t")
-        defaultVal.write(str(maxs2))
-        defaultVal.write("\t")
+        defaultVal.write(f'{self.OP[i]}\t{mins2}\t{maxs2}\t')
     
     defaultVal.write("\n")
     for i in range(len(self.CT)):
         mintau = self.MinTau[i].get()
         maxtau = self.MaxTau[i].get()
-        
-        defaultVal.write(self.CT[i])
-        defaultVal.write("\t")
-        defaultVal.write(str(mintau))
-        defaultVal.write("\t")
-        defaultVal.write(str(maxtau))
-        defaultVal.write("\t")
+        defaultVal.write(f'{self.CT[i]}\t{mintau}\t{maxtau}\t')
         
     defaultVal.write("\n")
     for i in range(len(self.Others)):
         minOthers = self.MinOthers[i].get()
         maxOthers = self.MaxOthers[i].get()
-        
-        defaultVal.write(self.Others[i])
-        defaultVal.write("\t")
-        defaultVal.write(str(minOthers))
-        defaultVal.write("\t")
-        defaultVal.write(str(maxOthers))
-        defaultVal.write("\t")
+        defaultVal.write(f'{self.Others[i]}\t{minOthers}\t{maxOthers}\t')
             
     for DataSet in range(len(self.RATES)):
         defaultVal.write("\n")
-        defaultVal.write("HF data set " + str(DataSet+1) + "\t")
+        defaultVal.write(f"HF data set {DataSet+1}\t{self.RATES[DataSet]}\t{self.RelaxationDataType[DataSet].get()}\t{self.Fields[DataSet].get()}")
 
-        rate = self.RATES[DataSet]
-        Type = self.RelaxationDataType[DataSet].get()
-        Field = self.Fields[DataSet].get()
-
-        defaultVal.write(str(rate))
-        defaultVal.write("\t")
-        defaultVal.write(str(Type))
-        defaultVal.write("\t")
-        defaultVal.write(str(Field))
-        
     defaultVal.close()
         
         
-def writeParam(self, loadFile, TauC, AccelerationType, Nmcmc, Nwalkers, checkPDB, PDB, ExperimentalSetUpPath, FieldCalibrationPath, IntRelaxoPath, InputPath):
+def writeParam(self, loadFile, TauC, Shuttling_Type, Nmcmc, Nwalkers, checkPDB, PDB, ExperimentalSetUpPath, FieldCalibrationPath, IntRelaxoPath, InputPath):
     defaultVal = open(loadFile, 'w')
         
     defaultVal.write("UNCORRECT\n")
-    defaultVal.write("Global tumbling correlation time\t")
-    defaultVal.write(str(TauC))
-    
-    defaultVal.write("\n")
-    defaultVal.write("Acceleration type\t")
-    defaultVal.write(AccelerationType)
-    defaultVal.write("\n")
-    defaultVal.write("Number of Chains\t")
-    defaultVal.write(str(Nwalkers))
-    defaultVal.write("\n")
-    defaultVal.write("Number of MCMC steps\t")
-    defaultVal.write(str(Nmcmc))
-    defaultVal.write("\n")
+    defaultVal.write(f"Global tumbling correlation time\t{TauC}\n")
+    defaultVal.write(f"Shuttling type\t{Shuttling_Type}\n")
+    defaultVal.write(f"Number of Chains\t{Nwalkers}\n")
+    defaultVal.write(f"Number of MCMC steps\t{Nmcmc}\n")
     defaultVal.write("PDB ID\t")
     if checkPDB:
         defaultVal.write(PDB)
     else:
         defaultVal.write('Not available')
     defaultVal.write("\n")
-    defaultVal.write("Setup Path\t")
-    defaultVal.write(str(ExperimentalSetUpPath))
-    defaultVal.write("\n")
-    defaultVal.write("Field calibration path\t")
-    defaultVal.write(str(FieldCalibrationPath))
-    defaultVal.write("\n")
-    defaultVal.write("Relaxometry data path\t")
-    defaultVal.write(str(IntRelaxoPath))
-    defaultVal.write("\n")
-    defaultVal.write("Other inputs path\t")
-    defaultVal.write(str(InputPath))
-    defaultVal.write("\n")
+    defaultVal.write(f"Setup Path\t{ExperimentalSetUpPath}\n")
+    defaultVal.write(f"Field calibration path\t{FieldCalibrationPath}\n")
+    defaultVal.write(f"Relaxometry data path\t{IntRelaxoPath}\n")
+    defaultVal.write(f"Other inputs path\t{InputPath}\n")
         
     bnds = []
     for i in range(len(self.OP)):
         mins2 = float(self.MinS2[i].get())
         maxs2 = float(self.MaxS2[i].get())
         bnds.append((mins2, maxs2))
-
-        defaultVal.write(self.OP[i])
-        defaultVal.write("\t")
-        defaultVal.write(str(mins2))
-        defaultVal.write("\t")
-        defaultVal.write(str(maxs2))
-        defaultVal.write("\t")
+        defaultVal.write(f'{self.OP[i]}\t{mins2}\t{maxs2}\t')
         
     defaultVal.write("\n")
     for i in range(len(self.CT)):
         mintau = float(self.MinTau[i].get())
         maxtau = float(self.MaxTau[i].get())
         bnds.append((mintau, maxtau))
-        
-        defaultVal.write(self.CT[i])
-        defaultVal.write("\t")
-        defaultVal.write(str(mintau))
-        defaultVal.write("\t")
-        defaultVal.write(str(maxtau))
-        defaultVal.write("\t")
+        defaultVal.write(f'{self.CT[i]}\t{mintau}\t{maxtau}\t')
         
     defaultVal.write("\n")
     for i in range(len(self.Others)):
         minOthers = float(self.MinOthers[i].get())
         maxOthers = float(self.MaxOthers[i].get())
         bnds.append((minOthers, maxOthers))
-        
-        defaultVal.write(self.Others[i])
-        defaultVal.write("\t")
-        defaultVal.write(str(minOthers))
-        defaultVal.write("\t")
-        defaultVal.write(str(maxOthers))
-        defaultVal.write("\t")
+        defaultVal.write(f'{self.Others[i]}\t{minOthers}\t{maxOthers}\t')
             
     for DataSet in range(len(self.RelaxationDataSet)):
         defaultVal.write("\n")
-        defaultVal.write("HF data set " + str(DataSet+1) + "\t")
-        defaultVal.write(str(self.RATES[DataSet]))
-        defaultVal.write("\t")
-        defaultVal.write(str(self.RelaxationDataType[DataSet].get()))
-        defaultVal.write("\t")
-        defaultVal.write(str(self.Fields[DataSet].get()))
+        defaultVal.write(f"HF data set {DataSet+1}\t{self.RATES[DataSet]}\t{self.RelaxationDataType[DataSet].get()}\t{self.Fields[DataSet].get()}")
         
         
     defaultVal = open(loadFile, 'w')
@@ -224,165 +134,105 @@ def writeParam(self, loadFile, TauC, AccelerationType, Nmcmc, Nwalkers, checkPDB
     
     return bnds
 
-
-
         
 def WriteMCMCTraj(self, Traj, AA):
-    OutName = self.directoryName + "/FittingResults/Trajectories/Trajectory_Residue" + str(AA) + ".txt"
-        
-    trajFile = open(OutName, 'w')
+    trajFile = open(f'{self.directory_name}/FittingResults/Trajectories/Trajectory_Residue{AA}.txt', 'w')
     
-    trajFile.write("Step")
-    for i in range(len(self.TotParam)):
-        trajFile.write("\t")
-        trajFile.write(self.TotParam[i])
-    trajFile.write("\tf")
+    trajFile.write('Step')
+    for param in self.TotParam:
+        trajFile.write(f'\t{param}')
+    trajFile.write('\tf')
         
-    for i in range(len(Traj)):
-        trajFile.write("\n")
-        trajFile.write(str(i))
-        for P in range(len(Traj[i])):
-            trajFile.write("\t")
-            trajFile.write(str(Traj[i][P]))
+    for count, step in enumerate(Traj):
+        trajFile.write('\n{count}')
+        for param in step:
+            trajFile.write(f'\t{param}')
     trajFile.close()
     
     
-    
-    
-def WriteMCMCParam(self):
-    Scaling = [FitF.ScalingFactor(self.FinalSimulatedIntensities[AA], self.Intensities[AA]) for AA in range(len(self.AAList))]
-    AverageScal = [sum(Scaling[AA])/float(len(Scaling[AA])) for AA in range(len(self.AAList))]
-    ScalingScore = [[Scaling[AA][i]**2 for i in range(len(Scaling[AA]))] for AA in range(len(self.AAList))]
-    VarianceScal = [sum(ScalingScore[AA])/float(len(ScalingScore[AA])) - AverageScal[AA]**2 for AA in range(len(self.AAList))]
-        
-        
-    OutName = self.directoryName + "/FittingResults/MCMCparameters.txt"
+def WriteMCMCParam(self, AAList):
+    OutName = self.directory_name + "/FittingResults/MCMCparameters.txt"
     OutFile = open(OutName, 'w')
     OutFile.write("Residue\tMAF\tAverage scaling factor\tVariance scaling factor")
-    for L in range(len(self.TotParam)):
-        OutFile.write("\t")
-        OutFile.write(str(self.TotParam[L]))
-        OutFile.write("\t")
-        OutFile.write("+ error")
-        OutFile.write("\t")
-        OutFile.write("- error")
+    for L in self.TotParam:
+        OutFile.write(f"\t{L}\t+ error\t- error")
     OutFile.write("lnf\t+ error\t- error")
-    for AA in range(len(self.AAList)):
-        OutFile.write("\n")
-        OutFile.write(str(self.AAList[AA]))
-        OutFile.write("\t")
-        OutFile.write(str(self.Acceptance[AA]))
-        OutFile.write("\t")
-        OutFile.write(str(AverageScal[AA]))
-        OutFile.write("\t")
-        OutFile.write(str(VarianceScal[AA]))
-        for L in range(len(self.TotParam)):
-            OutFile.write("\t")
-            OutFile.write(str(self.MCMCparam[AA][0][L]))
-            OutFile.write("\t")
-            OutFile.write(str(self.MCMCparam[AA][1][L]))
-            OutFile.write("\t")
-            OutFile.write(str(self.MCMCparam[AA][2][L]))
-        OutFile.write("\t")
-        OutFile.write(str(self.MCMCparam[AA][0][-1]))
-        OutFile.write("\t")
-        OutFile.write(str(self.MCMCparam[AA][1][-1]))
-        OutFile.write("\t")
-        OutFile.write(str(self.MCMCparam[AA][2][-1]))
-        
+    for AA in AAList:
+        Scaling = ScalingFactor(self.FinalSimulatedIntensities[AA], self.Intensities, self.Err_Int, AA)
+        AverageScal = np.average(list(Scaling.values()))
+        VarianceScal = np.std(list(Scaling.values()))
+    
+        OutFile.write(f"\n{AA}\t{self.Acceptance[AA]}\t{AverageScal}\t{VarianceScal}")
+
+        for L in range(len(self.TotParam)+1):
+            OutFile.write(f"\t{self.MCMCparam[AA][0][L]}\t{self.MCMCparam[AA][1][L]}\t{self.MCMCparam[AA][2][L]}")
         
     OutFile.close()
-    
-    
         
         
 def WritePDB(self, AllChi2):
     
-    if len(self.AAList) == 1:
+    if len(AllChi2) == 1:
         print('Only one residue provided: PDB coloring files will not be created')
+        return
         
-    else:
+    dirPDB = f'{self.directory_name}/FittingResults/PDBFiles'
+    os.makedirs(dirPDB)
     
-        dirPDB = self.directoryName + "/FittingResults/PDBFiles"
-        os.makedirs(dirPDB)
-        maxChi2 = max(AllChi2)
-        minChi2 = min(AllChi2)
-        maxParam = [[] for i in range(len(self.TotParam))]
-        minParam = [[] for i in range(len(self.TotParam))]
-        
-        AllParam = [[[] for AA in self.AAList] for P in self.TotParam]
-        for AA in range(len(self.AAList)):
-            for P in range(len(self.TotParam)):
-                AllParam[P][AA] = self.MCMCparam[AA][0][P]
-        
-        for param in range(len(AllParam)):
-            maxParam[param] = max(AllParam[param])
-            minParam[param] = min(AllParam[param])
-                    
-        NormalizedParam = [[] for AA in self.AAList]
-        for AA in range(len(self.AAList)):
-            NormalizedParam[AA].append((AllChi2[AA]-minChi2)/(maxChi2-minChi2))
-            for param in range(len(AllParam)):
-                NormalizedParam[AA].append((AllParam[param][AA]-minParam[param])/(maxParam[param]-minParam[param]))
-                        
-        for param in range(len(AllParam)+1):
-            if param == 0:
-                PDBfilename = dirPDB + "/" + self.PDB + "_Chi2.pml"
-                PDBfile = open(PDBfilename, 'w')
-            else:
-                PDBfilename = dirPDB + "/" + self.PDB + "_" + str(self.TotParam[param-1]) + ".pml"
-                PDBfile = open(PDBfilename, 'w')
-                    
-            PDBfile.write("load ")
-            PDBfile.write(str(self.PDB))
-            PDBfile.write(".pdb\n\nhide\n\nshow cartoon, all\n\n")
-                    
-            PDBfile.write("#Color the whole structure in grey as default color\n")
-            PDBfile.write("color grey, ")
-            PDBfile.write(str(self.PDB))
-            PDBfile.write("\n\n")
-                    
-            PDBfile.write("#Define a color in the blue to red range for each residue we have data for")
-            for AA in range(len(self.AAList)):
-                PDBfile.write("\n")
-                PDBfile.write("set_color resi")
-                PDBfile.write(str(self.AAList[AA]))
-                PDBfile.write(" = [")
-                PDBfile.write(str(NormalizedParam[AA][param]))
-                PDBfile.write(", 0.0, 1.0-")
-                PDBfile.write(str(NormalizedParam[AA][param]))
-                PDBfile.write("]")
+    maxParam = {}
+    minParam = {}
     
-            PDBfile.write("\n#Coloring each residue according to its color")
-            for AA in range(len(self.AAList)):
-                PDBfile.write("\ncolor resi")
-                PDBfile.write(str(self.AAList[AA]))
-                PDBfile.write(", resi ")
-                PDBfile.write(str(self.AAList[AA]))
-                        
-        PDBfile.close()
-            
+    labels = np.copy(self.TotParam)
 
+    AllParam = {}
+    for count, param in enumerate(labels):
+        AllParam[param] = []
+        for AA in self.MCMCparam.keys():
+            AllParam[param].append(self.MCMCparam[AA][0][count])
+        minParam[param], maxParam[param] = min(AllParam[param]), max(AllParam[param])
+        
+    labels = np.append(labels, 'Chi2')
+    AllParam['Chi2'] = []
+    for AA in self.MCMCparam.keys():
+        AllParam['Chi2'].append(AllChi2[AA])
+    minParam['Chi2'], maxParam['Chi2'] = min(list(AllChi2.values())), max(list(AllChi2.values()))
+
+    NormalizedParam = {}
+    for param in labels:
+        NormalizedParam[param] = {}
+        for count, AA in enumerate(list(self.MCMCparam.keys())):
+            NormalizedParam[param][AA] = (AllParam[param][count] - minParam[param]) / (maxParam[param] - minParam[param])
+                    
+    for param in labels:
+        PDBfile = open(f'{dirPDB}/{self.PDB}_{param}.pml', 'w')
+                
+        PDBfile.write(f"load {self.PDB}.pdb\n\n")
+        PDBfile.write("hide\n\n")
+        PDBfile.write("show cartoon, all\n\n")
+                
+        PDBfile.write("#Color the whole structure in grey as default color\n")
+        PDBfile.write(f"color grey, {self.PDB}\n\n")
+                
+        PDBfile.write("#Define a color in the blue to red range for each residue we have data for\n")
+        for AA in NormalizedParam[param].keys():
+            PDBfile.write(f"set_color resi{AA} = [{NormalizedParam[param][AA]}, 0.0, {1.0 - NormalizedParam[param][AA]}]\n")
+
+        PDBfile.write("\n#Coloring each residue according to its color\n")
+        for AA in NormalizedParam[param].keys():
+            PDBfile.write("color resi{AA}, resi {AA}\n")
+                    
+        PDBfile.close()
+        
+        
 def WriteLFR1(self):
-    filenameRelaxSpeed = self.directoryName + "/FittingResults/LowFieldRelaxationR1.txt"
-    frelax = open(filenameRelaxSpeed, 'w')
+    frelax = open(f'{self.directory_name}/FittingResults/LowFieldRelaxationR1.txt', 'w')
     
-    frelax.write("\t\tField\tIntensity scaling\tR1 back-calculated\tFitted R1")
+    frelax.write("\t\tField\tIntensity scaling\tR1 back-calculated\tFitted R1\n")
             
-    for AA in range(len(self.AAList)):
-        frelax.write("\n")
-        Res = self.AAList[AA]
-        frelax.write("Residue ")
-        frelax.write(str(Res))
+    for AA in self.ScalingIntensities.keys():
+        frelax.write(f"Residue {AA}\n")
                         
-        for Field in range(len(self.B0LFields[AA])):
-            frelax.write("\n")
-            frelax.write(str(self.B0LFields[AA][Field]))
-            frelax.write("\t")
-            frelax.write(str(self.ScalingIntensities[AA][Field]))
-            frelax.write("\t")
-            frelax.write(str(self.R1LFDataForCurve_BackCalc[AA][Field]))
-            frelax.write("\t")
-            frelax.write(str(self.R1LFDataForCurve_Fitted[AA][Field][1]))
+        for exp in self.set_up.keys():
+            frelax.write(f"{self.B0LFields[exp]}\t{self.ScalingIntensities[AA][exp]}\t{self.R1LF_BackCalc[AA][exp]}\t{self.R1LF_Fitted[AA][exp]}\n")
             
     frelax.close()
