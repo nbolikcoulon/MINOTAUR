@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Sat Jan  5 20:18:19 2019
-
-@author: nbc
-"""
 
 import tkinter as tk
 from tkinter.filedialog import askdirectory
@@ -25,7 +20,7 @@ class ChooseFolder(tk.Frame):
         
     def gui(self):
         def BrowseFolder(self):
-            self.ChosenFolder = askdirectory()
+            self.ChosenFolder = askdirectory(initialdir = os.path.dirname(os.path.abspath(__file__)))
             self.Folder.config(text=os.path.basename(self.ChosenFolder))
             
         def Quit(self):
@@ -53,9 +48,14 @@ class ChooseFolder(tk.Frame):
         self.Start.grid(row=1, column=0)
         self.Quit.grid(row=1, column=1)
         
-
-
-
+        if len(sys.argv) > 1:
+            folder = str(sys.argv[1])
+            os.system("python " + folder + "/setup.py build_ext --inplace")
+            os.system("python " + folder + "/setup.py build_ext --inplace")
+            os.system("python MINOTAUR.py " + folder)
+            
+            sys.exit()
+            
 
 if __name__ == "__main__":
     root1 = tk.Tk()
