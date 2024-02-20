@@ -7,7 +7,6 @@
 #      for one amino acids, all magnetic fields and relaxation delays      #
 #                                                                          #
 ############################################################################
-
 import numpy as np
 from scipy import linalg
 
@@ -16,231 +15,248 @@ import FitFunctions as FitF
 from _RelaxMat import RelaxMat as RM
 
 
-
-def FieldList(self, Increment):
-    if self.AccelerationType == "Constant Speed":
-        SpeedUp = []
-        SpeedDown = []
-        for i in range(len(self.ExperimentNumber)):
-            SpeedUp.append(self.Height[i] / self.SLF[i])
-            SpeedDown.append(self.Height[i] / self.SHF[i])
-        PositionListUp = [np.arange(0, self.Height[i], Increment * SpeedUp[i]) for i in range(len(self.ExperimentNumber))]     #a vector containing positions at different increment for each height
-        for i in range(len(self.ExperimentNumber)):
-            PositionListUp[i] = np.append(PositionListUp[i], self.Height[i])
-        FieldListUp = [[FitF.B0Fit(PositionListUp[i][j], self.LowerCoefs, self.MiddleCoefs, self.HigherCoefs) for j in range(len(PositionListUp[i]))] for i in range(len(PositionListUp))]       #a vector containing the value of the field for the corresponding height
+def FieldList(self, increment):
+    ### 
+    #   make a single field list for all the experiments:
+    #   consider the highest height the sample is shuttled to;
+    #   compute the field at every optimized increment;
+    #   create the delay time list for each experiments 
+    #   use the slowest speed to compute these delays
+    ###
+    all_heights = []
+    for exp in self.set_up.keys():
+        all_heights.append(self.set_up[exp]['height'])
+    max_height = max(all_heights)
+    
+    positions =  np.arange(increment, max_height, increment)
+    for exp in self.set_up.keys():
+        positions = np.append(positions, self.set_up[exp]['height'])
+    positions = np.sort(positions)
+    
+    field_list = [FitF.B0Fit(p, self.LowerCoefs, self.MiddleCoefs, self.HigherCoefs) for p in positions]
+    
+    delays = {}
+    delays['up'] = {}
+    delays['down'] = {}
+    if self.Shuttling_type == "Constant Speed":
+        for exp in self.set_up.keys():
+            speed_up = self.set_up[exp]['height'] / self.set_up[exp]['SLF']
+            speed_down = self.set_up[exp]['height'] / self.set_up[exp]['SHF']
             
-        PositionListDown = [np.arange(0, self.Height[i], Increment * SpeedDown[i]) for i in range(len(self.ExperimentNumber))]     #a vector containing positions at different increment for each height
-        for i in range(len(self.ExperimentNumber)):
-            PositionListDown[i] = np.append(PositionListDown[i], self.Height[i])
-        PositionListDown = [PositionListDown[i][::-1] for i in range(len(PositionListDown))]
-        FieldListDown = [[FitF.B0Fit(PositionListDown[i][j], self.LowerCoefs, self.MiddleCoefs, self.HigherCoefs) for j in range(len(PositionListDown[i]))] for i in range(len(PositionListDown))]       #a vector containing the value of the field for the corresponding height
-        
+            delays['up'][exp] = []
+            delays['up'][exp].append(positions[0] / speed_up)
+            delays['down'][exp] = []
+            delays['down'][exp].append(positions[0] / speed_down)
+            for counter, p in enumerate(positions[1:]):
+                if p > self.set_up[exp]['height']:
+                    break
+                else:
+                    delays['up'][exp].append( (positions[counter+1] - positions[counter]) / speed_up )
+                    delays['down'][exp].append( (positions[counter+1] - positions[counter]) / speed_down )
+
     else:
-        Acceleration = []
-        for i in range(len(self.ExperimentNumber)):
-            Acceleration.append(4.0*self.Height[i] / (self.SLF[i] * self.SLF[i]))
-        TimeListUp = [np.arange(0, self.SLF[i], Increment) for i in range(len(self.ExperimentNumber))]
-        TimeListDown = [np.arange(0, self.SHF[i], Increment) for i in range(len(self.ExperimentNumber))]
-        def getPosition(t, T, A, H):         #t for time, T for time to get to target point, A for acceleraiton, H target point
-            if t <= T/2.0:
-                h = 1.0 / 2.0 * A * t**2
-            else:
-                h = -1.0 / 2.0 * A * t**2 + 4.0*H/T * t - H
-            return h
-    
-        PositionListUp = []
-        PositionListDown = []
-        for i in range(len(self.ExperimentNumber)):
-            IntermediateListUp = []
-            for Time in TimeListUp[i]:
-                IntermediateListUp.append(getPosition(Time, self.SLF[i], Acceleration[i], self.Height[i]))
-            IntermediateListDown = []
-            for Time in TimeListDown[i]:
-                IntermediateListDown.append(getPosition(Time, self.SHF[i], Acceleration[i], self.Height[i]))
-            PositionListUp.append(IntermediateListUp)
-            PositionListDown.append(IntermediateListDown)
-    
-        FieldListUp = [[FitF.B0Fit(PositionListUp[i][j], self.LowerCoefs, self.MiddleCoefs, self.HigherCoefs) for j in range(len(PositionListUp[i]))] for i in range(len(PositionListUp))]
-        PositionListDown = [PositionListDown[i][::-1] for i in range(len(PositionListDown))]
-        FieldListDown = [[FitF.B0Fit(PositionListDown[i][j], self.LowerCoefs, self.MiddleCoefs, self.HigherCoefs) for j in range(len(PositionListDown[i]))] for i in range(len(PositionListDown))]
+        for exp in self.set_up.keys():
+            acceleration_up = 4.0*self.set_up[exp]['height'] / self.set_up[exp]['SLF'] * self.set_up[exp]['SLF']
+            acceleration_down = 4.0*self.set_up[exp]['height'] / self.set_up[exp]['SHF'] * self.set_up[exp]['SHF']
+
+            delays['up'][exp] = []
+            delays['down'][exp] = []
+            for p in positions:
+                if p > self.set_up[exp]['height']:
+                    break
+                else:
+                    if p < self.set_up[exp]['height'] / 2.:
+                        dt_up = np.sqrt(2. * p / acceleration_up)
+                        dt_down = np.sqrt(2. * p / acceleration_up)
+                    else:
+                        dt_up = np.sqrt(2. / acceleration_up * (4.*self.set_up[exp]['height'] / max(self.set_up[exp]['SLF'], self.set_up[exp]['SHF']) -
+                                                          p - self.set_up[exp]['height']))
+                        dt_down = np.sqrt(2. / acceleration_down * (4.*self.set_up[exp]['height'] / max(self.set_up[exp]['SLF'], self.set_up[exp]['SHF']) -
+                                                          p - self.set_up[exp]['height']))
+                delays['up'][exp].append(dt_up)
+                delays['down'][exp].append(dt_down)
         
-    return FieldListUp, FieldListDown
+    return field_list, delays
 
 
-
-
-
-def PropCalDiag(param, tauc, OtherInputs, magfield, Increment, FieldListUp, FieldListDown, ExperimentNumber, WTHF, d25, LFtimes, B0LFields, PosAuto):
-    P = [[] for i in range(5)]      #Propagator
+def PropCalDiag(param, tauc, OtherInputs, magfield, Increment, field_list, delays_shuttle, set_up, B0LFields, PosAuto):
+    Propagators = {}
     
-#HF
-    RMHF = np.array(RM(magfield, param, tauc, OtherInputs))[0]
-    
-    eigHF, eigvecHF = np.linalg.eig(RMHF)
-    for wthf in range(len(WTHF)):
-        P[0].append(eigvecHF @ np.diag(np.exp(-WTHF[wthf] * eigHF)) @ np.linalg.inv(eigvecHF))
-        P[4].append(eigvecHF @ np.diag(np.exp(-d25[wthf] * eigHF)) @ np.linalg.inv(eigvecHF))
-        
-    
-#Shuttle HF to LF
-    RMSHLF = [[[] for k in FieldListUp[FieldUp]] for FieldUp in range(len(FieldListUp))]
-    for FieldUp in range(len(FieldListUp)):
-        for k in range(len(FieldListUp[FieldUp])):
-            RMSHLF[FieldUp][k] = np.array(RM(FieldListUp[FieldUp][k], param, tauc, OtherInputs))[0]
-    
-    P[1] = [[] for i in FieldListUp]
-    rise = [[[] for k in FieldListUp[i]] for i in range(len(FieldListUp))]
-    for FieldUp in range(len(FieldListUp)):
-        for k in range(len(FieldListUp[FieldUp])):
-            Eig, Vec = np.linalg.eig(RMSHLF[FieldUp][k])
-            rise[FieldUp][k] = Vec @ np.diag(np.exp(- Increment * Eig)) @ np.linalg.inv(Vec)
-        prod = rise[FieldUp][0]
-        for k in range(1, len(FieldListUp[FieldUp])):
-            prod = prod @ rise[FieldUp][k]
-        P[1][FieldUp] = prod
-        
-#WT LF
-    P[2] = [[] for i in LFtimes]
-    for wtlf in range(len(B0LFields)):
-        RMLF = np.array(RM(B0LFields[wtlf], param, tauc, OtherInputs))[0]
-        Eig, Vec = np.linalg.eig(RMLF)
-        
-        for vc in range(len(LFtimes[wtlf])):
-            P[2][wtlf].append(Vec @ np.diag(np.exp(-LFtimes[wtlf][vc] * Eig)) @ np.linalg.inv(Vec))
-
-#Shuttle LF to HF
-    RMSHF = [[[] for k in FieldListDown[FieldDown]] for FieldDown in range(len(FieldListDown))]
-    for FieldDown in range(len(FieldListDown)):
-        for k in range(len(FieldListDown[FieldDown])):
-            RMSHF[FieldDown][k] = np.array(RM(FieldListDown[FieldDown][k], param, tauc, OtherInputs))[0]
-            
-    P[3] = [[] for i in FieldListDown]
-    down = [[[] for k in FieldListDown[i]] for i in range(len(FieldListDown))]
-    for FieldDown in range(len(FieldListDown)):
-        for k in range(len(FieldListDown[FieldDown])):
-            Eig, Vec = np.linalg.eig(RMSHF[FieldDown][k])
-            down[FieldDown][k] = Vec @ np.diag(np.exp(-Increment * Eig)) @ np.linalg.inv(Vec)
-        prod = down[FieldDown][0]
-        for k in range(1, len(FieldListDown[FieldDown])):
-            prod = prod @ down[FieldDown][k]
-        P[3][FieldDown] = prod
+    #Shuttle periods
+    shuttle_eigval = []
+    shuttle_eigvec = []
+    for b0_shuttle in range(len(field_list)):
+        relax_mat = np.asarray(RM(field_list[b0_shuttle], param, tauc, OtherInputs))
+        Eig, Vec = np.linalg.eig(relax_mat)
+        shuttle_eigval.append(Eig)
+        shuttle_eigvec.append(Vec)
 
             
-#Total Propagation
-    TotalExpVal = [[] for i in ExperimentNumber]
-                    
-    for ExpNum in range(len(ExperimentNumber)):
-        PropInt1 = P[4][ExpNum] @ P[3][ExpNum]
-        PropInt2 = P[1][ExpNum] @ P[0][ExpNum]
-        for vc in range(len(LFtimes[ExpNum])):
-            TotalProp = PropInt1 @ P[2][ExpNum][vc] @ PropInt2
-            TotalExpVal[ExpNum].append(TotalProp[PosAuto][PosAuto])
+        
+    expected_values = {}
+    for exp in set_up.keys():
+        expected_values[exp] = {}
+        #High Field
+        relaxmat_HF = np.array(RM(magfield, param, tauc, OtherInputs))
+        eigHF, eigvecHF = np.linalg.eig(relaxmat_HF)
+        Propagators['HF_1'] = eigvecHF @ np.diag(np.exp(-set_up[exp]['WTHF'] * eigHF)) @ np.linalg.inv(eigvecHF)
+        Propagators['HF_2'] = eigvecHF @ np.diag(np.exp(-set_up[exp]['d25'] * eigHF)) @ np.linalg.inv(eigvecHF)
+        
+        #Low Field
+        relaxmat_LF = np.array(RM(B0LFields[exp], param, tauc, OtherInputs))
+        eigLF, eigvecLF = np.linalg.eig(relaxmat_LF)
+        Propagators['LF'] = {}
+        for vc in set_up[exp]['vc']:
+            Propagators['LF'][vc] = eigvecLF @ np.diag(np.exp(-set_up[exp]['LF_times'][vc] * eigLF)) @ np.linalg.inv(eigvecLF)
             
+        #shuttling
+        prop_shuttling_up = []
+        for count, delay in enumerate(delays_shuttle['up'][exp]):
+            prop_shuttling_up.append(shuttle_eigvec[count] @ np.diag(np.exp(-delay * shuttle_eigval[count])) @ np.linalg.inv(shuttle_eigvec[count]))
+        prop_shuttling_down = []
+        for count, delay in enumerate(delays_shuttle['down'][exp]):
+            prop_shuttling_down.append(shuttle_eigvec[count] @ np.diag(np.exp(-delay * shuttle_eigval[count])) @ np.linalg.inv(shuttle_eigvec[count]))
+
+        Propagators['LF->HF'] = prop_shuttling_down[0]
+        for p in prop_shuttling_down[1:]:
+            Propagators['LF->HF'] = Propagators['LF->HF'] @ p
+        Propagators['HF->LF'] = prop_shuttling_up[0]
+        for p in prop_shuttling_up[1:]:
+            Propagators['HF->LF'] = p @ Propagators['HF->LF']
+        
+        #Total Propagation
+        for vc in set_up[exp]['vc']:
+            total_propagrator = Propagators['HF_2'] @ Propagators['LF->HF'] @ Propagators['LF'][vc] @ Propagators['HF->LF'] @ Propagators['HF_1']
+            expected_values[exp][vc] = total_propagrator[PosAuto][PosAuto]
            
-    return TotalExpVal
+    return expected_values
 
 
-
-
-def PropCalExp(param, tauc, OtherInputs, magfield, Increment, FieldListUp, FieldListDown, ExperimentNumber, WTHF, d25, LFtimes, B0LFields, PosAuto):
-    P = [[] for i in range(5)]      #Propagator
+def PropCalDiag_ForPlot(param, tauc, OtherInputs, magfield, Increment, field_list, delays_shuttle, set_up, B0LFields, PosAuto, lf_times, exp):
+    Propagators = {}
     
-#HF
-    RMHF = np.array(RM(magfield, param, tauc, OtherInputs))[0]
-    for wthf in range(len(WTHF)):
-        P[0].append(linalg.expm(-WTHF[wthf] * RMHF))
-        P[4].append(linalg.expm(-d25[wthf] * RMHF))
+    #Shuttle periods
+    shuttle_eigval = []
+    shuttle_eigvec = []
+    for b0_shuttle in range(len(field_list)):
+        relax_mat = np.asarray(RM(field_list[b0_shuttle], param, tauc, OtherInputs))
+        Eig, Vec = np.linalg.eig(relax_mat)
+        shuttle_eigval.append(Eig)
+        shuttle_eigvec.append(Vec)
         
+    expected_values = []
+    #High Field
+    relaxmat_HF = np.array(RM(magfield, param, tauc, OtherInputs))
+    eigHF, eigvecHF = np.linalg.eig(relaxmat_HF)
+    Propagators['HF_1'] = eigvecHF @ np.diag(np.exp(-set_up[exp]['WTHF'] * eigHF)) @ np.linalg.inv(eigvecHF)
+    Propagators['HF_2'] = eigvecHF @ np.diag(np.exp(-set_up[exp]['d25'] * eigHF)) @ np.linalg.inv(eigvecHF)
     
-#Shuttle HF to LF
-    RMSHLF = [[[] for k in FieldListUp[FieldUp]] for FieldUp in range(len(FieldListUp))]
-    for FieldUp in range(len(FieldListUp)):
-        for k in range(len(FieldListUp[FieldUp])):
-            RMSHLF[FieldUp][k] = np.array(RM(FieldListUp[FieldUp][k], param, tauc, OtherInputs))[0]
+    #Low Field
+    relaxmat_LF = np.array(RM(B0LFields[exp], param, tauc, OtherInputs))
+    eigLF, eigvecLF = np.linalg.eig(relaxmat_LF)
+    Propagators['LF'] = {}
+    for vc in lf_times:
+        Propagators['LF'][vc] = eigvecLF @ np.diag(np.exp(-vc * eigLF)) @ np.linalg.inv(eigvecLF)
+        
+    #shuttling
+    prop_shuttling_up = []
+    for count, delay in enumerate(delays_shuttle['up'][exp]):
+        prop_shuttling_up.append(shuttle_eigvec[count] @ np.diag(np.exp(-delay * shuttle_eigval[count])) @ np.linalg.inv(shuttle_eigvec[count]))
+    prop_shuttling_down = []
+    for count, delay in enumerate(delays_shuttle['down'][exp]):
+        prop_shuttling_down.append(shuttle_eigvec[count] @ np.diag(np.exp(-delay * shuttle_eigval[count])) @ np.linalg.inv(shuttle_eigvec[count]))
+
+    Propagators['LF->HF'] = prop_shuttling_down[0]
+    for p in prop_shuttling_down[1:]:
+        Propagators['LF->HF'] = Propagators['LF->HF'] @ p
+    Propagators['HF->LF'] = prop_shuttling_up[0]
+    for p in prop_shuttling_up[1:]:
+        Propagators['HF->LF'] = p @ Propagators['HF->LF']
+
+    #Total Propagation
+    for vc in lf_times:
+        total_propagrator = Propagators['HF_2'] @ Propagators['LF->HF'] @ Propagators['LF'][vc] @ Propagators['HF->LF'] @ Propagators['HF_1']
+        expected_values.append(total_propagrator[PosAuto][PosAuto])
+           
+    return np.asarray(expected_values)
+
+
+def PropCalExp(param, tauc, OtherInputs, magfield, Increment, field_list, delays_shuttle, set_up, B0LFields, PosAuto):
+    Propagators = {}
     
-    P[1] = [[] for i in FieldListUp]
-    rise = [[[] for k in FieldListUp[i]] for i in range(len(FieldListUp))]
-    for FieldUp in range(len(FieldListUp)):
-        for k in range(len(FieldListUp[FieldUp])):
-            rise[FieldUp][k] = linalg.expm(- Increment * RMSHLF[FieldUp][k])
-        prod = rise[FieldUp][0]
-        for k in range(1, len(FieldListUp[FieldUp])):
-            prod = prod @ rise[FieldUp][k]
-        P[1][FieldUp] = prod
+    #Shuttle periods
+    relax_mat = []
+    for b0_shuttle in range(len(field_list)):
+        relax_mat.append(np.asarray(RM(field_list[b0_shuttle], param, tauc, OtherInputs)))
+
+
+    expected_values = {}
+    for exp in set_up.keys():
+        expected_values[exp] = {}
+        #High Field
+        relaxmat_HF = np.array(RM(magfield, param, tauc, OtherInputs))
+        Propagators['HF_1'] = linalg.expm(-set_up[exp]['WTHF'] * relaxmat_HF)
+        Propagators['HF_2'] = linalg.expm(-set_up[exp]['d25'] * relaxmat_HF)
         
-#WT LF
-    P[2] = [[] for i in LFtimes]
-    for wtlf in range(len(B0LFields)):
-        RMLF = np.array(RM(B0LFields[wtlf], param, tauc, OtherInputs))[0]
+        #Low Field
+        relaxmat_LF = np.array(RM(B0LFields[exp], param, tauc, OtherInputs))
+        Propagators['LF'] = {}
+        for vc in set_up[exp]['vc']:
+            Propagators['LF'][vc] = linalg.expm(-set_up[exp]['LF_times'][vc] * relaxmat_LF)
+            
+        #shuttling
+        prop_shuttling_up = []
+        for count, delay in enumerate(delays_shuttle['up'][exp]):
+            prop_shuttling_up.append(linalg.expm(-delay * relax_mat[count]))
+        prop_shuttling_down = []
+        for count, delay in enumerate(delays_shuttle['down'][exp]):
+            prop_shuttling_down.append(linalg.expm(-delay * relax_mat[count]))
+
+        Propagators['LF->HF'] = prop_shuttling_down[0]
+        for p in prop_shuttling_down[1:]:
+            Propagators['LF->HF'] = Propagators['LF->HF'] @ p
+        Propagators['HF->LF'] = prop_shuttling_up[0]
+        for p in prop_shuttling_up[1:]:
+            Propagators['HF->LF'] = p @ Propagators['HF->LF']
         
-        for vc in range(len(LFtimes[wtlf])):
-            P[2][wtlf].append(linalg.expm(-LFtimes[wtlf][vc] * RMLF))
-
-#Shuttle LF to HF
-    RMSHF = [[[] for k in FieldListDown[FieldDown]] for FieldDown in range(len(FieldListDown))]
-    for FieldDown in range(len(FieldListDown)):
-        for k in range(len(FieldListDown[FieldDown])):
-            RMSHF[FieldDown][k] = np.array(RM(FieldListDown[FieldDown][k], param, tauc, OtherInputs))[0]
-            
-    P[3] = [[] for i in FieldListDown]
-    down = [[[] for k in FieldListDown[i]] for i in range(len(FieldListDown))]
-    for FieldDown in range(len(FieldListDown)):
-        for k in range(len(FieldListDown[FieldDown])):
-            down[FieldDown][k] = linalg.expm(- Increment * RMSHF[FieldDown][k])
-        prod = down[FieldDown][0]
-        for k in range(1, len(FieldListDown[FieldDown])):
-            prod = prod @ down[FieldDown][k]
-        P[3][FieldDown] = prod
-
-            
-#Total Propagation
-    TotalExpVal = [[] for i in ExperimentNumber]
-                    
-    for ExpNum in range(len(ExperimentNumber)):
-        PropInt1 = P[4][ExpNum] @ P[3][ExpNum]
-        PropInt2 = P[1][ExpNum] @ P[0][ExpNum]
-        for vc in range(len(LFtimes[ExpNum])):
-            TotalProp = PropInt1 @ P[2][ExpNum][vc] @ PropInt2
-            TotalExpVal[ExpNum].append(TotalProp[PosAuto][PosAuto])
-            
-            
-    return TotalExpVal
-
-
+        #Total Propagation
+        for vc in set_up[exp]['vc']:
+            total_propagrator = Propagators['HF_2'] @ Propagators['LF->HF'] @ Propagators['LF'][vc] @ Propagators['HF->LF'] @ Propagators['HF_1']
+            expected_values[exp][vc] = total_propagrator[PosAuto][PosAuto]
+           
+    return expected_values
 
 
 def optShuttling(self, ExpNum, ParamOpt, PosAuto):
-    Increment = 1e-3
-    FieldListUp_Init, FieldListDown_Init = FieldList(self, Increment)
+    Increment = 1e-3    #starting increment in meter
     
-    posMaxVC = self.VC[ExpNum].index(max(self.VC[ExpNum]))
+    field_list, delays = FieldList(self, Increment)
+    
+    sub_setup = {}
+    sub_setup[ExpNum] = self.set_up[ExpNum]
+    sub_B0LF = {}
+    sub_B0LF[ExpNum] = self.B0LFields[ExpNum]
     
     ExpVal_Init = []
-    for i in range(len(ParamOpt)):
-        ExpVal_InitF = PropCalDiag(ParamOpt[i], self.TauC, np.array(self.OtherInputs[0][1]), self.MagField, Increment, FieldListUp_Init, FieldListDown_Init, [self.ExperimentNumber[ExpNum]], [self.WTHF[ExpNum]], [self.d25[ExpNum]], [self.LFtimes[ExpNum]], [self.B0LFields[0][ExpNum]], PosAuto)
-        ExpVal_Init.append(ExpVal_InitF[-1][posMaxVC])
-    print(" Initial value : ", Increment, "s")
+    aa = list(self.OtherInputs.keys())[0]
+    for param in ParamOpt:
+        ExpVal_Init_Full = PropCalDiag(param, self.TauC, self.OtherInputs[aa], self.MagField, Increment, field_list, delays, sub_setup, sub_B0LF, PosAuto)
+        ExpVal_Init.append(ExpVal_Init_Full[ExpNum][max(sub_setup[ExpNum]['vc'])])
+    print(f" Initial value : {Increment} m")
         
-    Success = 0
     count = 0
-    while Success == 0:
+    while True:
         count += 1
-        Increment = Increment + 1e-3
-        FieldListUp, FieldListDown = FieldList(self, Increment)
+        Increment += 1e-3
+        field_list, delays = FieldList(self, Increment)
         
-        ExpVal = []
-        for i in range(len(ParamOpt)):
-            ExpVal_F = PropCalDiag(ParamOpt[i], self.TauC, np.array(self.OtherInputs[0][1]), self.MagField, Increment, FieldListUp, FieldListDown, [self.ExperimentNumber[ExpNum]], [self.WTHF[ExpNum]], [self.d25[ExpNum]], [self.LFtimes[ExpNum]], [self.B0LFields[0][ExpNum]], PosAuto)
-            ExpVal.append(ExpVal_F[-1][posMaxVC])
+        for counter, param in enumerate(ParamOpt):
+            ExpVal_Full = PropCalDiag(param, self.TauC, self.OtherInputs[aa], self.MagField, Increment, field_list, delays, sub_setup, sub_B0LF, PosAuto)
+            ExpVal = ExpVal_Full[ExpNum][max(sub_setup[ExpNum]['vc'])]
         
-        for i in range(len(ParamOpt)):
-            if abs(ExpVal[i]-ExpVal_Init[i])/ExpVal_Init[i] > 0.01:
-                Success = 1
-                break
-        if Success ==0:
-            print(" Updated value ", count, " : ", Increment, " s")
-        else:
-            Increment = Increment - 1e-3
-                
-
-    return Increment
+            if abs(ExpVal-ExpVal_Init[counter])/ExpVal_Init[counter] > 0.01:
+                return Increment - 1e-3
+            
+        print(f" Updated value {count} : {Increment} m")
+        
+        
