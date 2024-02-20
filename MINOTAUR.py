@@ -6,9 +6,9 @@ from tkinter.filedialog import askopenfilename, askdirectory
 from PIL import ImageTk, Image
 from shutil import copyfile
 from distutils.dir_util import copy_tree
-from scipy.optimize import curve_fit
 from random import uniform
 from scipy import linalg
+from matplotlib.backends.backend_pdf import PdfPages
 
 import numpy as np
 import time
@@ -31,6 +31,10 @@ import ShuttlingSimulation as ShSim
 import Outputs as Out
 import FigOutputs as FigOut
 import MonteCarlo as MCMC
+import ReadInput
+
+
+os.environ["OMP_NUM_THREADS"] = "1"
 
 
 #################################################### Graphical User Interface ####################################################
@@ -43,12 +47,12 @@ class GUI(tk.Frame):
         
         self.RelaxFunc = ParamFile.ImportFunc()
         self.RATES = []
+        self.browsing_dir = os.path.dirname(os.path.abspath(__file__))
         
         self.parameters()
 
 ############ Main window        
     def parameters(self):
-        
         
         def Quit(self):
             sys.exit(0)
@@ -60,30 +64,34 @@ class GUI(tk.Frame):
         
         #Browsing functions
         def BrowseFieldCal(self):
-            self.FieldCalibration = askopenfilename()
+            self.FieldCalibration = askopenfilename(initialdir = self.browsing_dir)
             self.FieldCal.config(text=os.path.basename(self.FieldCalibration))
+            self.browsing_dir = self.FieldCalibration
             
         def BrowseExpSetUp(self):
-            self.ExperimentalSetUp = askopenfilename()
+            self.ExperimentalSetUp = askopenfilename(initialdir = self.browsing_dir)
             self.ExpSetUp.config(text=os.path.basename(self.ExperimentalSetUp))
+            self.browsing_dir = self.ExperimentalSetUp
             
         def BrowseRelaxomInt(self):
-            self.Intrelax = askdirectory()
+            self.Intrelax = askdirectory(initialdir = self.browsing_dir)
             self.Irelaxom.config(text=os.path.basename(self.Intrelax))
+            self.browsing_dir = self.Intrelax
             
         def BrowseInputs(self):
-            self.InputFile = askopenfilename()
+            self.InputFile = askopenfilename(initialdir = self.browsing_dir)
             self.Input.config(text=os.path.basename(self.InputFile))
-            
+            self.browsing_dir = self.InputFile
             
         def BrowseRates(self, n):
             n = n[0]
             if n+1 > len(self.RATES):
-                self.RATES.append(askopenfilename())
+                self.RATES.append(askopenfilename(initialdir = self.browsing_dir))
             else:
-                self.RATES[n] = askopenfilename()
+                self.RATES[n] = askopenfilename(initialdir = self.browsing_dir)
                 
             self.RelaxationDataSet[n].config(text=os.path.basename(self.RATES[n]))
+            self.browsing_dir = self.RATES[n]
             
             if len(self.RelaxationDataSet) % 2 == 0:
                 self.AddButton.grid(row=int(self.nline+3+len(self.RelaxationDataSet)/2), column=8)
@@ -119,12 +127,13 @@ class GUI(tk.Frame):
         #function to load previous parameters
         def LoadParam(self):
             root.withdraw()
-            self.parameters = askopenfilename()
+            self.parameters = askopenfilename(initialdir = self.browsing_dir)
             
-            paramFile = open(self.parameters, 'r')
-            nparam = sum(1 for line in paramFile)-1
-            paramFile.close()
-            paramFile = open(self.parameters, 'r')
+            UpdateGUI(self, self.parameters)
+        
+        def UpdateGUI(self, path):
+            nparam = sum(1 for line in open(path, 'r'))-1
+            paramFile = open(path, 'r')
             
             paramFile.readline()
     
@@ -138,7 +147,7 @@ class GUI(tk.Frame):
                 
             self.TAUC.set(previousSetUp[0][1])
                     
-            self.AccelerationTYPE.set(previousSetUp[1][1])
+            self.Shuttling_TYPE.set(previousSetUp[1][1])
             self.NWALKER.set(previousSetUp[2][1])
             self.NMCMC.set(previousSetUp[3][1])
             if previousSetUp[4][1] != 'Not available':
@@ -172,7 +181,6 @@ class GUI(tk.Frame):
                 self.ErrorText = tk.Label(self.param, text = "Status: Missing file(s)", fg="orange")
                 self.ErrorText.grid(row=0, column=3)
                 
-                    
                     
             if len(previousSetUp[9]) == 3*len(self.mins2)+1:
                 for i in range(len(self.mins2)):
@@ -225,6 +233,11 @@ class GUI(tk.Frame):
                 self.AddButton.grid(row=int(self.nline+3+len(self.RelaxationDataSet)/2), column=8, columnspan=2)
             else:
                 self.AddButton.grid(row=int(self.nline+3+(1+len(self.RelaxationDataSet))/2), column=4, columnspan=2)
+                
+            #if the user indicated it in the command line, immediately start
+            if len(sys.argv) > 3 and str(sys.argv[3]) == '-start':
+                    self.GetData()
+            
             
 ############# GUI coding
         self.param = tk.Toplevel()
@@ -257,9 +270,9 @@ class GUI(tk.Frame):
         self.TAUC.set("Correlation time TauC (sec)")
         self.TauC = tk.Entry(self.param, textvariable = self.TAUC)
 
-        self.AccelerationTYPE = tk.StringVar()
-        self.AccelerationTYPE.set("Type of shuttling")
-        AccelerationType = tk.OptionMenu(self.param, self.AccelerationTYPE, "Constant Speed", "Constant Acceleration")
+        self.Shuttling_TYPE = tk.StringVar()
+        self.Shuttling_TYPE.set("Type of shuttling")
+        Shuttling_Type = tk.OptionMenu(self.param, self.Shuttling_TYPE, "Constant Speed", "Constant Acceleration")
         
         self.NMCMC= tk.IntVar()
         self.NMCMC.set("MCMC - Number of steps")
@@ -273,7 +286,7 @@ class GUI(tk.Frame):
         ParamText.grid(row=1, column=0)
         self.TauC.grid(row=2, column=0, columnspan=3)
         
-        AccelerationType.grid(row=2, column=3, columnspan=2)
+        Shuttling_Type.grid(row=2, column=3, columnspan=2)
 
         self.Nwalker.grid(row=3, column=5, columnspan=3)
         self.Nmcmc.grid(row=2, column=5, columnspan=3)
@@ -296,7 +309,6 @@ class GUI(tk.Frame):
         MinOtherText.grid(row=6, column=7)
         MaxOtherText.grid(row=6, column=8)
         
-        
         self.OP = ParamFile.Names['OrderParam']
         self.MinS2 = []
         self.MaxS2 = []
@@ -314,7 +326,6 @@ class GUI(tk.Frame):
             s2Text.grid(row=7+i, column=0)
             self.MinS2[i].grid(row=7+i, column=1)
             self.MaxS2[i].grid(row=7+i, column=2)
-
         
         self.CT = ParamFile.Names['CorrTimes']
         self.MinTau = []
@@ -333,7 +344,6 @@ class GUI(tk.Frame):
             tauText.grid(row=7+i, column=3)
             self.MinTau[i].grid(row=7+i, column=4)
             self.MaxTau[i].grid(row=7+i, column=5)
-            
             
         self.Others = ParamFile.Names['others']
         self.MinOthers = []
@@ -356,8 +366,6 @@ class GUI(tk.Frame):
         incr = max(len(self.OP), len(self.CT), len(self.Others))
         self.nline = 6 + incr
 
-
-
 #Load files part
         TextFiles = tk.Label(self.param, text = "Load files:", fg="blue")
         
@@ -369,7 +377,6 @@ class GUI(tk.Frame):
         self.RelaxationDataSet = []
         self.Nlabel = 1
         self.RelaxationDataSet.append(tk.Button(self.param, text="High field rates", command = lambda: BrowseRates(self, ([0]))))
-
         
         self.MenuRelaxType = {}
         for i in range(len(ParamFile.RelaxationRates)):
@@ -380,12 +387,10 @@ class GUI(tk.Frame):
         self.RelaxationDataType[-1].set("Data type")
         self.RelaxationType.append(tk.OptionMenu(self.param, self.RelaxationDataType[-1], *self.MenuRelaxType.keys()))
         
-        
         self.Fields = []
         Field = tk.StringVar()
         Field.set("High field (T)")
         self.Fields.append(tk.Entry(self.param, textvariable = Field, width=10))
-        
         
         self.AddButton = tk.Button(self.param, text="Add high field rates", command = lambda: Add(self))
         
@@ -410,7 +415,11 @@ class GUI(tk.Frame):
         
         TextPDB.grid(row=self.nline+1, column=6, columnspan=2)
         self.PDBid.grid(row=self.nline+2, column=6, columnspan=2)
-                
+        
+        
+        #option to indicate a load-file in the command line
+        if len(sys.argv) > 2:
+            UpdateGUI(self, str(sys.argv[2]))
         
 
     def GetData(self):
@@ -418,33 +427,29 @@ class GUI(tk.Frame):
         GUI.begin = time.strftime("%H") + "H" + time.strftime("%M")
         
 #################################################### Create the results folder and copy the input files in it ####################################################
-        workingDirectiory = os.path.dirname(os.path.abspath(__file__))
-        ResultDirectory = workingDirectiory + "/Results"
+        result_directory = os.path.dirname(os.path.abspath(__file__)) + "/Results"
 
-        if not os.path.exists(ResultDirectory):
-            os.makedirs(ResultDirectory)
+        if not os.path.exists(result_directory):
+            os.makedirs(result_directory)
             
-        GUI.directoryName = ResultDirectory + "/" + time.strftime("%Y-%m-%d")
-        t = 0
+        GUI.directory_name = result_directory + "/" + time.strftime("%Y-%m-%d")
         n = 2
-        while t == 0:
-            if not os.path.exists(GUI.directoryName):
-                os.makedirs(GUI.directoryName)
-                t = 1
+        while True:
+            if not os.path.exists(GUI.directory_name):
+                os.makedirs(GUI.directory_name)
+                break
             else:
-                GUI.directoryName = ResultDirectory + "/" + time.strftime("%Y-%m-%d") + "_" + str(n)
+                GUI.directory_name = result_directory + "/" + time.strftime("%Y-%m-%d") + "_" + str(n)
                 n += 1
-                
 
-        dirInput = GUI.directoryName + "/InputFiles"
+        dirInput = GUI.directory_name + "/InputFiles"
         os.makedirs(dirInput)
                 
-        dirOutput = GUI.directoryName + "/FitAllResidues"
+        dirOutput = GUI.directory_name + "/FitAllResidues"
         os.makedirs(dirOutput)
         
-        dirFitOutput = GUI.directoryName + "/FittingResults"
+        dirFitOutput = GUI.directory_name + "/FittingResults"
         os.makedirs(dirFitOutput)
-        
         
         #Copy the directory functions
         fromDirectory = sys.argv[1]
@@ -453,35 +458,31 @@ class GUI(tk.Frame):
         copy_tree(fromDirectory, toDirectory)
         
         #Copy the input files
-        ExperimentalSetUpPath = self.ExperimentalSetUp
-        FieldCalibrationPath = self.FieldCalibration
         GUI.InputPath = self.InputFile
-
         
         dirHFRelax = dirInput + "/HFRelaxationRates"
         os.makedirs(dirHFRelax)
         for i in range(len(ParamFile.RelaxationRates)):
             os.makedirs(dirHFRelax + "/" + ParamFile.RelaxationRates[i])
-            os.makedirs(dirOutput + "/" + ParamFile.RelaxationRates[i])
             
         for i in range(len(self.RATES)):
             RelaxFilePath = self.RATES[i]
             destFile = dirHFRelax + "/" + str(self.RelaxationDataType[i].get()) + "/" + str(os.path.basename(self.RATES[i]))
             copyfile(RelaxFilePath, destFile)
-            
 
-        FileNames = ["/ExpSetUp.txt", "/FieldCalibration.txt", "/OtherInputs.txt"]
-        n = 0
-        for i in [ExperimentalSetUpPath, FieldCalibrationPath, GUI.InputPath]:
-            destFile = dirInput + FileNames[n]
-            copyfile(i, destFile)
-            n+=1
+        file_names = {}
+        file_names["ExpSetUp.txt"] = self.ExperimentalSetUp
+        file_names["FieldCalibration.txt"] = self.FieldCalibration
+        file_names["OtherInputs.txt"] = self.InputFile
+        for f in file_names.keys():
+            destFile = dirInput + "/" + f
+            copyfile(file_names[f], destFile)
 
         
 #################################################### Read the data ####################################################
         GUI.Nmcmc = int(self.Nmcmc.get())
-        Nwalker_b = int(self.Nwalker.get())
-        GUI.Nwalker = MCMC.nWalkerCheck(Nwalker_b, len(ParamFile.Names['OrderParam']) + len(ParamFile.Names['CorrTimes'])+len(ParamFile.Names['others'])+1)
+        Nwalker_input = int(self.Nwalker.get())
+        GUI.Nwalker = MCMC.nWalkerCheck(Nwalker_input, len(ParamFile.Names['OrderParam']) + len(ParamFile.Names['CorrTimes'])+len(ParamFile.Names['others'])+1)
 
         GUI.TauC = float(self.TauC.get())
             
@@ -495,292 +496,177 @@ class GUI(tk.Frame):
             GUI.TotParam.append(i)
         for i in self.Others:
             GUI.TotParam.append(i)
-                
         
-        GUI.AccelerationType = str(self.AccelerationTYPE.get())
+        GUI.Shuttling_type = str(self.Shuttling_TYPE.get())
         
         GUI.PDB = self.PDBid.get()
         if len(GUI.PDB) == 4:
             GUI.checkPDB = True
         else:
             GUI.checkPDB = False
+        
 
+        #Field calibration
+        field_cal = ReadInput.Read_Field_Calibration(self.FieldCalibration)
         
-        ExperimentalSetUp = open(ExperimentalSetUpPath, "r")
-        #this is a file containing the experiment number, the height (LF value), d22 (stab LF), d25 (stab HF), WTHF (response time), shuttle LF (time of shuttling to LF), WTLF, shuttle HF and VC (time spent at LF)
-        
-        FieldCalibration = open(FieldCalibrationPath, "r")
-        #This is a file containing the height and the corresponding field
-        
-        with FieldCalibration as input:
-            FC = list(zip(*(line.strip().split("\t") for line in input)))
-        FC = [[float(FC[col][line]) for col in range(2)] for line in range(len(FC[0]))]   #it is a one column vector containing the height and the field at each position
-        heights = [FC[col][0] for col in range(len(FC))]
-        fields = [FC[col][1] for col in range(len(FC))]
-        
-        higherHeights = []
-        lowerHeights = []
-        middleHeights = []
-        middleFields = []
-        higherFields = []
-        lowerFields = []
-        for i in range(len(heights)):
-            if heights[i] <= 0.47:
-                higherHeights.append(heights[i])
-                higherFields.append(fields[i])
+        field_cal_high = {}
+        field_cal_middle = {}
+        field_cal_low = {}
+        for h in field_cal.keys():
+            if h <= 0.47:
+                field_cal_high[h] = field_cal[h]
             else:
-                if heights[i] <= 0.6:
-                    middleHeights.append(heights[i])
-                    middleFields.append(fields[i])
+                if h <= 0.6:
+                    field_cal_middle[h] = field_cal[h]
                 else:
-                    lowerHeights.append(heights[i])
-                    lowerFields.append(fields[i])
+                    field_cal_low[h] = field_cal[h]
 
-        GUI.HigherCoefs = np.polyfit(higherHeights, higherFields, 10)
-        GUI.MiddleCoefs = np.polyfit(middleHeights, middleFields, 5)
-        GUI.LowerCoefs = np.polyfit(lowerHeights, lowerFields, 10)
+        GUI.HigherCoefs = np.polyfit(list(field_cal_high.keys()), list(field_cal_high.values()), 10)
+        GUI.MiddleCoefs = np.polyfit(list(field_cal_middle.keys()), list(field_cal_middle.values()), 5)
+        GUI.LowerCoefs = np.polyfit(list(field_cal_low.keys()), list(field_cal_low.values()), 10)
 
-
-        
-        #BO Files
-        HFfiles = []
-        HFtypes = []
-        AllFields = []
-        for i in range(len(self.RelaxationDataSet)):
-            HFfiles.append(self.RATES[i])
-            HFtypes.append(str(self.RelaxationDataType[i].get()))
-            AllFields.append(float(self.Fields[i].get()))
-        
-        UsedFields = []
-        for i in AllFields:
-            if i not in UsedFields:
-                UsedFields.append(i)
-        
-        GUI.B0HFields_int = []
-        targetLength = len(UsedFields)
-        while len(GUI.B0HFields_int) != targetLength:
-            GUI.B0HFields_int.append(max(UsedFields))
-            UsedFields.remove(max(UsedFields))
-
-        
-
-        numberExp = sum(1 for line in ExperimentalSetUp)
-        ExperimentalSetUp.close()
-        ExperimentalSetUp = open(ExperimentalSetUpPath, "r")
-        
-        GUI.ExperimentNumber = [[] for i in range(numberExp)]
-        GUI.Height = [[] for i in range(numberExp)]
-        GUI.d22 = [[] for i in range(numberExp)]
-        GUI.d25 = [[] for i in range(numberExp)]
-        GUI.WTHF = [[] for i in range(numberExp)]
-        GUI.SLF = [[] for i in range(numberExp)]
-        GUI.WTLF = [[] for i in range(numberExp)]
-        GUI.SHF = [[] for i in range(numberExp)]
-        GUI.VC = [[] for i in range(numberExp)]
-        
-        for i in range(numberExp):
-            Line = ExperimentalSetUp.readline()
-            Line = [x for x in Line.split('\n')]
-            Line = Line[0]
-            Line = [x for x in Line.split('\t')]
-            Line = [float(col) for col in Line]
-            
-            GUI.ExperimentNumber[i] = int(Line[0])
-            GUI.Height[i] = Line[1]
-            GUI.d22[i] = Line[2] * 1e-3
-            GUI.d25[i] = Line[3] * 1e-3
-            GUI.WTHF[i] = Line[4] * 1e-3
-            GUI.SLF[i] = Line[5] * 1e-3
-            GUI.WTLF[i] = Line[6] * 1e-3
-            GUI.SHF[i] = Line[7] * 1e-3
-            
-            vc = []
-            for j in range(len(Line)-8):
-                vc.append(Line[j+8] * 1e-3)
-            GUI.VC[i] = vc
-                
-        GUI.B0LFields_Int = [[] for i in range(numberExp)]
-        for i in range(len(GUI.Height)):
-            GUI.B0LFields_Int[i] = FitF.B0Fit(GUI.Height[i], GUI.LowerCoefs, GUI.MiddleCoefs, GUI.HigherCoefs)
-            
         GUI.MagField = FitF.B0Fit(0.0, GUI.LowerCoefs, GUI.MiddleCoefs, GUI.HigherCoefs)
-        
-        #Plot the field profile with the considered fields during relaxometry
-        FigOut.PlotFieldProfile(heights, GUI.LowerCoefs, GUI.MiddleCoefs, GUI.HigherCoefs, GUI.B0LFields_Int, fields, dirFitOutput)
-        
 
-        #HF Relaxation rates Files
-        HFfiles_orga = [[[] for j in GUI.B0HFields_int] for i in ParamFile.RelaxationRates]
-        HFields_orga = [[[] for j in GUI.B0HFields_int] for i in ParamFile.RelaxationRates]
-        for i in range(len(HFfiles)):
-            posType = ParamFile.RelaxationRates.index(HFtypes[i])
-            posField = GUI.B0HFields_int.index(AllFields[i])
-            
-            HFfiles_orga[posType][posField].append(HFfiles[i])
-            HFields_orga[posType][posField].append(AllFields[i])
-        #Amino Acids number list
-        nAA = sum(1 for line in open(HFfiles[0]))
+        #experimental set up
+        GUI.set_up = ReadInput.Read_Exp_Setup(self.ExperimentalSetUp)
+        #this is a file containing the experiment number, the height (LF value), d22 (stab LF), d25 (stab HF), WTHF (response time), shuttle LF (time of shuttling to LF), WTLF, shuttle HF and VC (time spent at LF)
+
+        #Plot the field profile with the considered fields during relaxometry
+        GUI.B0LFields = {}
+        for exp in GUI.set_up.keys():
+            GUI.B0LFields[exp] = FitF.B0Fit(GUI.set_up[exp]['height'], GUI.LowerCoefs, GUI.MiddleCoefs, GUI.HigherCoefs)
+        FigOut.PlotFieldProfile(field_cal, GUI.LowerCoefs, GUI.MiddleCoefs, GUI.HigherCoefs, GUI.B0LFields, dirFitOutput)
         
-        GUI.AAList = []
-        for line in open(HFfiles[0]):
-            line = line.split("\n")
-            line = line[0]
-            line = line.split("\t")
-            GUI.AAList.append(int(line[0]))
+        
+        #high field Files
+        HF_data_all = {}
+        HF_err_all = {}
+        for RelaxType in ParamFile.RelaxationRates:
+            HF_data_all[RelaxType] = {}
+            HF_err_all[RelaxType] = {}
             
-#create the average HFdata list
-        GUI.HFdata = [[[] for i in ParamFile.RelaxationRates] for k in GUI.AAList]
-        GUI.B0HFields = [[[] for i in ParamFile.RelaxationRates] for k in GUI.AAList]
-        for RelaxType in range(len(ParamFile.RelaxationRates)):
-            for HField in range(len(HFfiles_orga[RelaxType])):
-                ndata = [0.0 for i in range(nAA)]
-                for i in range(len(HFfiles_orga[RelaxType][HField])):
-                    file = open(HFfiles_orga[RelaxType][HField][i], 'r')
-                    with file as input:
-                        Filedata = list(zip(*(line.strip().split("\t") for line in input)))
-                        
-                    for AA in range(nAA):
-                        if Filedata[1][AA] != 'NA':
-                            ndata[AA] += 1.0
-                            if i == 0:
-                                GUI.HFdata[AA][RelaxType].append([int(Filedata[0][AA]), float(Filedata[1][AA]), float(Filedata[2][AA])])
-                                GUI.B0HFields[AA][RelaxType].append(float(HFields_orga[RelaxType][HField][0]))
-                            else:
-                                GUI.HFdata[AA][RelaxType][-1][1] = float(GUI.HFdata[AA][RelaxType][-1][1]) + float(Filedata[1][AA])
-                                GUI.HFdata[AA][RelaxType][-1][2] = float(GUI.HFdata[AA][RelaxType][-1][2]) + float(Filedata[2][AA])
-                    file.close()
-                for AA in range(nAA):
-                    if ndata[AA] != 0.0:
-                        GUI.HFdata[AA][RelaxType][-1][1] = float(GUI.HFdata[AA][RelaxType][-1][1])/ndata[AA]
-                        GUI.HFdata[AA][RelaxType][-1][2] = float(GUI.HFdata[AA][RelaxType][-1][2])/ndata[AA]
-                        
+        for dataset in range(len(self.RelaxationDataSet)):
+            relax_type = str(self.RelaxationDataType[dataset].get())
+            b0 = float(self.Fields[dataset].get())
+                
+            if b0 not in HF_data_all[relax_type].keys():
+                HF_data_all[relax_type][b0] = []
+                HF_err_all[relax_type][b0] = []
+                    
+            data, err = ReadInput.Read_High_Field_Data(self.RATES[dataset])
+            HF_data_all[relax_type][b0].append(data)
+            HF_err_all[relax_type][b0].append(err)        
+            
+        #create the average HF data
+        GUI.HF_data = {}
+        GUI.HF_err = {}
+        for RelaxType in HF_data_all.keys():
+            GUI.HF_data[RelaxType] = {}
+            GUI.HF_err[RelaxType] = {}
+            
+            for field in HF_data_all[RelaxType].keys():
+                GUI.HF_data[RelaxType][field] = {}
+                GUI.HF_err[RelaxType][field] = {}
+                
+                for aa in HF_data_all[RelaxType][field][0].keys():
+                    GUI.HF_data[RelaxType][field][aa] = 0.
+                    GUI.HF_err[RelaxType][field][aa] = 0.
+                    
+                    n_repeat = len(HF_data_all[RelaxType][field])
+                    for repeat in range(n_repeat):
+                        GUI.HF_data[RelaxType][field][aa] += HF_data_all[RelaxType][field][repeat][aa] / n_repeat
+                        GUI.HF_err[RelaxType][field][aa] += HF_err_all[RelaxType][field][repeat][aa]**2
+                    GUI.HF_err[RelaxType][field][aa] = np.sqrt(GUI.HF_err[RelaxType][field][aa]) / n_repeat                        
                         
 
         #LF intensities
         dirIntRelax = dirInput + "/RelaxometryIntensities"
         os.makedirs(dirIntRelax)
         
-        GUI.Intensities = [[] for AA in GUI.AAList]
-        GUI.B0LFields = [[] for AA in GUI.AAList]
-        for n in range(len(GUI.ExperimentNumber)):
-            InterensityFile = self.Intrelax + "/" + str(int(GUI.ExperimentNumber[n])) + ".txt"
-            if os.path.isfile(InterensityFile):
-                destFile = dirIntRelax + "/" + str(int(GUI.ExperimentNumber[n])) + ".txt"
-                copyfile(InterensityFile, destFile)
-                
-                AA = 0
-                for line in open(InterensityFile):
-                    L = line.split("\n")
-                    L = L[0]
-                    L = L.split("\t")
-                    if int(2*len(GUI.VC[n])+1) != len(L):
-                        print("")
-                        print("Eperiment number " + str(int(GUI.ExperimentNumber[n])) + " does not have the correct number of intensities")
-                        print("")
-                        sys.exit()
-                    else:
-                        ToAdd = []
-                        for vc in range(int((len(L)-1)/2)):
-                            if L[vc*2+1] != "NA":
-                                ToAdd.append([int(L[0]), float(L[vc*2+1]), float(L[vc*2+2])])
-                            else:
-                                ToAdd.append([int(L[0]), "NA", "NA"])
-                        if len(ToAdd) != 0:
-                            GUI.B0LFields[AA].append(FitF.B0Fit(GUI.Height[n], GUI.LowerCoefs, GUI.MiddleCoefs, GUI.HigherCoefs))
-                            GUI.Intensities[AA].append(ToAdd)
-                        AA += 1
-            else:
-                print("")
-                print("Missing the eperiment number " + str(int(GUI.ExperimentNumber[n])) + " file")
-                print("")
-                sys.exit()
+        valid_file_ext = ['txt', 'dat', 'csv']
         
+        GUI.Intensities = {}
+        GUI.Err_Int = {}
+        for exp in GUI.set_up.keys():
+            file_found = False
+            for extension in valid_file_ext:
+                InterensityFile = f'{self.Intrelax}/{exp}.{extension}'
+                if os.path.isfile(InterensityFile):
+                    destFile = f'{dirIntRelax}/{exp}.{extension}'
+                    copyfile(InterensityFile, destFile)
+                    file_found = True
+                    break
                 
+            if not file_found:
+                print()
+                print(f"Missing the eperiment number {exp} file")
+                print()
+                sys.exit()
+                
+            GUI.Intensities[exp], GUI.Err_Int[exp] = ReadInput.Read_Relaxometry_Decay(InterensityFile, GUI.set_up[exp]['vc'], exp)
                 
         
 #Other inputs
-        InputF = open(GUI.InputPath, "r")
-        with InputF as input:
-            inputL = list(zip(*(line.strip().split('\t') for line in input)))
-        
-        GUI.OtherInputs = [[] for AA in GUI.AAList]
-        for AA in range(len(GUI.AAList)):
-            listOtherInputs = []
-            for i in range(len(inputL)-1):
-                listOtherInputs.append(float(inputL[1+i][AA]))
-            GUI.OtherInputs[AA] = [float(inputL[0][AA]), listOtherInputs]
-            
+        GUI.OtherInputs = ReadInput.Read_Other_Input(GUI.InputPath)
             
                         
 #Write the Parameters file
         loadFile = dirInput + "/Parameters.txt"
-        GUI.bnds = Out.writeParam(self, loadFile, GUI.TauC, GUI.AccelerationType, GUI.Nmcmc, GUI.Nwalker, GUI.checkPDB, GUI.PDB, ExperimentalSetUpPath, FieldCalibrationPath, self.Intrelax, GUI.InputPath)
+        GUI.bnds = Out.writeParam(self, loadFile, GUI.TauC, GUI.Shuttling_type, GUI.Nmcmc, GUI.Nwalker, GUI.checkPDB, GUI.PDB, self.ExperimentalSetUp, self.FieldCalibration,
+                                  self.Intrelax, GUI.InputPath)
         
-        
-        
-        self.PositionR1 = 0
-        for i in range(len(self.RelaxFunc)):
-            if ParamFile.RelaxationRates[i] == "R1":
-                break
-            self.PositionR1 += 1
-            
-        
+        self.PositionR1 = np.where(np.asarray(ParamFile.RelaxationRates) == "R1")[0][0]
         
         GUI.PositionR1 = self.PositionR1
         GUI.RelaxFunc = self.RelaxFunc
+
 
         Calculations()
 
 
 class Calculations(GUI):
     def __init__(self):
-        
 
             self.FieldLists()
             
-            
     def FieldLists(self):
 #################################################### Preparation before MCMC ####################################################
-        print("")
-        print("Optimizing shuttling time increment...")
-       
-        self.LFtimes = [[self.d22[wtlf] + self.WTLF[wtlf] + self.VC[wtlf][vc] for vc in range(len(self.VC[wtlf]))] for wtlf in range(len(self.WTLF))]
-        posLowField = self.B0LFields[0].index(min(self.B0LFields[0]))
+        print()
+        print("Optimizing shuttling increment...")
+        lowest_field_idx = list(self.B0LFields.values()).index(min(list(self.B0LFields.values())))
+        exp_lowest_field = list(self.B0LFields.keys())[lowest_field_idx]
         
         RandomParam = [[] for i in range(10)]
         for i in range(10):
             for P in range(len(self.TotParam)):
                 RandomParam[i].append(uniform(self.bnds[P][0], self.bnds[P][1]))
                 
-                
-        self.Increment = ShSim.optShuttling(self, posLowField, np.array(RandomParam), ParamFile.PositionAuto)
-        self.FieldListUp, self.FieldListDown = ShSim.FieldList(self, self.Increment)
-        print("Final used increment: ", self.Increment, " s")
+        self.Increment = ShSim.optShuttling(self, exp_lowest_field, np.array(RandomParam), ParamFile.PositionAuto)
+        self.shuttling_fields, self.shuttling_delays = ShSim.FieldList(self, self.Increment)
+        print("Final used increment: ", self.Increment, " m")
         
-        
-        
-        
-        print("")
+        print()
         print("Choosing propagator calculation method...")
-        refRM = np.asarray(_RelaxMat.RelaxMat(5.0, RandomParam[0], self.TauC, self.OtherInputs[0][1])[0])
-        
+        aa = list(self.OtherInputs.keys())[0]
+        relax_mat = np.asarray(_RelaxMat.RelaxMat(5.0, RandomParam[0], self.TauC, self.OtherInputs[aa]))
+        dt = 1e-3
 
         print(" Method 1")
         start = time.time()
         for i in range(10000):
-            linalg.expm(-refRM)
+            linalg.expm(-dt * relax_mat)
         end = time.time()
         Duration1 = end-start
-        print("  time for 10,000 iterations: ", round(Duration1, 1), " s")
+        print(f"  time for 10,000 iterations: {round(Duration1, 1)} s")
         
         print(" Method 2")
         start = time.time()
         for i in range(10000):
-            eig, eigvec = np.linalg.eig(refRM)
-            eigvec @ np.diag(np.exp(-eig)) @ np.linalg.inv(eigvec)
+            eig, eigvec = np.linalg.eig(relax_mat)
+            eigvec @ np.diag(np.exp(-dt * eig)) @ np.linalg.inv(eigvec)
         end = time.time()
         Duration2 = end-start
-        print("  time for 10,000 iterations: ", round(Duration2, 1), " s")
+        print(f"  time for 10,000 iterations: {round(Duration2, 1)} s")
         
         if min(Duration1, Duration2) == Duration1:
             self.PropFunction = ShSim.PropCalExp
@@ -788,175 +674,143 @@ class Calculations(GUI):
         else:
             self.PropFunction = ShSim.PropCalDiag
             print("Choosing calculation method done. Method 2 chosen.")
+            
+            
+            
+        # param = np.asarray([0.9, 62475078762.51121, 8.811421637299617, 0.8890747323612564])
+        # calc_diag = ShSim.PropCalDiag_print(param, 5e-9, [], 14.1, 6e-3, self.shuttling_fields, self.shuttling_delays, self.set_up, self.B0LFields, ParamFile.PositionAuto)
+        # calc_exp = ShSim.PropCalDiag(param, 5e-9, [], 14.1, 6e-3, self.shuttling_fields, self.shuttling_delays, self.set_up, self.B0LFields, ParamFile.PositionAuto)
+        # calc_diag = ShSim.PropCalDiag(param, 5e-9, [], 14.1, 6e-3, self.shuttling_fields, self.shuttling_delays, self.set_up, self.B0LFields, ParamFile.PositionAuto)
+        
+        # exp = list(self.set_up.keys())[-1]
+        
+        # print(exp)
+        # print(calc_exp[exp])
+        # print(calc_diag[exp]) 
+
+        # print()
+        # print()
+        # print(self.shuttling_delays['up'][exp])
+        # print(self.shuttling_delays['down'][exp])
+        # sys.exit()
         
         self.MCMCcalculations()
         
         
-        
     def MCMCcalculations(self):
-        FigMCMCcorrFolder = self.directoryName + "/FittingResults/Correlations"
-        FigMCMCtrajFolder = self.directoryName + "/FittingResults/Trajectories"
-        FigIntensities  = self.directoryName + "/FittingResults/Intensities"
+        FigMCMCcorrFolder = self.directory_name + "/FittingResults/Correlations"
+        FigMCMCtrajFolder = self.directory_name + "/FittingResults/Trajectories"
+        FigIntensities  = self.directory_name + "/FitAllResidues/Intensities"
         os.makedirs(FigMCMCcorrFolder)
         os.makedirs(FigMCMCtrajFolder)
         os.makedirs(FigIntensities)
-
-        self.MCMCparam = [[] for AA in self.AAList]
-        self.Acceptance = [[] for AA in self.AAList]
-        self.FinalSimulatedIntensities = [[] for AA in self.AAList]
         
-        self.R1LFDataForCurve_BackCalc = [[] for i in self.AAList]
-        self.R1LFDataForCurve_Fitted = [[] for i in self.AAList]
-        self.ScalingIntensities = [[] for i in self.AAList]
+        pdf_trajectories = PdfPages(f'{FigMCMCtrajFolder}/All_trajectories.pdf' )
+        pdf_correlations = PdfPages(f'{FigMCMCcorrFolder}/All_correlations.pdf' )
+        
+        pdf_rates = {}
+        for RelaxRate in ParamFile.RelaxationRates:
+            pdf_rates[RelaxRate] = PdfPages(f'{self.directory_name}/FitAllResidues/{RelaxRate}.pdf')
+
+        self.MCMCparam = {}
+        self.Acceptance = {}
+        self.FinalSimulatedIntensities = {}
+        
+        self.R1LF_BackCalc = {}
+        self.R1LF_Fitted = {}
+        self.ScalingIntensities = {}
         
         nParam = len(ParamFile.Names['OrderParam']) + len(ParamFile.Names['CorrTimes'])+len(ParamFile.Names['others'])+1
+
+        e = list(self.Intensities.keys())[0]
+        AAList = list(self.Intensities[e].keys())
         
-        
-        
-        
-        print("")
+        print()
         print("Monte Carlo")
         
-        
-        for AA in range(len(self.AAList)):
-            print("")
-            print(" Residue ", self.AAList[AA])
-            print("")
+        for AA in AAList:
+            print()
+            print(f" Residue {AA}")
+            print()
             
-            
-            self.MCMCparam[AA], self.Acceptance[AA], FullTraj = MCMC.MarkovChainMonteCarlo(FigMCMCcorrFolder, FigMCMCtrajFolder, self.Intensities[AA], self.HFdata[AA], self.B0HFields[AA], self.TauC, self.OtherInputs[AA][1], self.MagField, self.Increment, self.FieldListUp, self.FieldListDown, self.ExperimentNumber, self.WTHF, self.d25, self.LFtimes, self.B0LFields[AA], self.Nwalker, self.Nmcmc, self.bnds, self.TotParam, self.AAList[AA], self.PropFunction, nParam)
+            self.MCMCparam[AA], self.Acceptance[AA], FullTraj = MCMC.MarkovChainMonteCarlo(pdf_trajectories, pdf_correlations, AA, nParam, FigMCMCcorrFolder, FigMCMCtrajFolder,
+                                                                self.TauC, self.MagField, self.Nwalker, self.Nmcmc, self.bnds, self.TotParam,
+                                                                self.Increment, self.PropFunction, self.shuttling_fields, self.shuttling_delays,
+                                                                self.Intensities, self.Err_Int, self.HF_data, self.HF_err, self.OtherInputs, self.set_up, self.B0LFields)
                 
-            self.FinalSimulatedIntensities[AA] = self.PropFunction(np.array(self.MCMCparam[AA][0][:-1]), self.TauC, np.array(self.OtherInputs[AA][1]), self.MagField, self.Increment, self.FieldListUp, self.FieldListDown, self.ExperimentNumber, self.WTHF, self.d25, self.LFtimes, self.B0LFields[AA], ParamFile.PositionAuto)
+            self.FinalSimulatedIntensities[AA] = self.PropFunction(np.asarray(self.MCMCparam[AA][0][:-1]), self.TauC, self.OtherInputs[AA], self.MagField,
+                                                                   self.Increment, self.shuttling_fields, self.shuttling_delays, self.set_up,
+                                                                   self.B0LFields, ParamFile.PositionAuto)
     
-            Out.WriteMCMCTraj(self, FullTraj, self.AAList[AA])         #file containing the MCMC trajectories
+            Out.WriteMCMCTraj(self, FullTraj, AA)         #file containing the MCMC trajectories
                 
-
-                
-            print("")
+            print()
             print(" Making figures")
-            print("")
+            print()
+            
+            self.ScalingIntensities[AA] = MCMC.ScalingFactor(self.FinalSimulatedIntensities[AA], self.Intensities, self.Err_Int, AA)
+            self.R1LF_BackCalc[AA] = FitF.CalcR1_LF(self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA], self.B0LFields)
+            self.R1LF_Fitted[AA] = FitF.FitR1_LF(self.Intensities, AA)
             
             #Draw the intensities
-            self.ScalingIntensities[AA] = MCMC.ScalingFactor(self.FinalSimulatedIntensities[AA], self.Intensities[AA])
-            
-            timeForSim = [np.linspace(min(self.LFtimes[LField])-min(self.VC[LField]), max(self.LFtimes[LField]), 100) for LField in range(len(self.VC))]
-            timeForSim_Plot = [np.linspace(0.0, max(self.VC[LField]), 100) for LField in range(len(self.VC))]
-            FinalSimulatedIntensitiesFull = self.PropFunction(np.array(self.MCMCparam[AA][0][:-1]), self.TauC, np.array(self.OtherInputs[AA][1]), self.MagField, self.Increment, self.FieldListUp, self.FieldListDown, self.ExperimentNumber, self.WTHF, self.d25, timeForSim, self.B0LFields[AA], ParamFile.PositionAuto)
-            
-            BackIntensities = [[self.ScalingIntensities[AA][LField]*FinalSimulatedIntensitiesFull[LField][t] for t in range(len(FinalSimulatedIntensitiesFull[LField]))] for LField in range(len(self.B0LFields[AA]))]
-                
-            IntensitiesFigFolder = FigIntensities + "/Residue" + str(self.AAList[AA])
-            os.makedirs(IntensitiesFigFolder)
-                
-                
-            IntensitiesForPlot = [[] for LF in range(len(self.Intensities[AA]))]
-            IntensitiesErrForPlot = [[] for LF in range(len(self.Intensities[AA]))]
-            DelaysForPlot = [[] for LF in range(len(self.Intensities[AA]))]
-            for LF in range(len(self.Intensities[AA])):
-                for VC in range(len(self.Intensities[AA][LF])):
-                    if self.Intensities[AA][LF][VC][1] != "NA":
-                        IntensitiesForPlot[LF].append(self.Intensities[AA][LF][VC][1])
-                        IntensitiesErrForPlot[LF].append(self.Intensities[AA][LF][VC][2])
-                        DelaysForPlot[LF].append(self.VC[LF][VC])
-                
-            FigOut.PlotIntensities(self, BackIntensities, IntensitiesFigFolder, IntensitiesForPlot, IntensitiesErrForPlot, DelaysForPlot, timeForSim_Plot, AA)
+            FigOut.PlotIntensities(self, FigIntensities, AA)
                 
             #Draw the relaxation rates 
-            for LField in range(len(self.B0LFields[AA])):
-                self.R1LFDataForCurve_BackCalc[AA].append(self.RelaxFunc[self.PositionR1](self.B0LFields[AA][LField], self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA][1])[0])
-                ParamOpt, ParamCov = curve_fit(FitF.exp, np.asarray(self.VC[LField]), np.asarray(self.Intensities[AA][LField])[:,1])
-                
-                self.R1LFDataForCurve_Fitted[AA].append([self.B0LFields[AA][LField], ParamOpt[0]])
-                        
-                        
-            yRateMesHF = [[] for i in ParamFile.RelaxationRates]
-            yRateErrMesHF = [[] for i in ParamFile.RelaxationRates]
-            ResiHF = [[] for i in ParamFile.RelaxationRates]
-            xB0HF = [[] for i in ParamFile.RelaxationRates]
-            for RelaxRate in range(len(ParamFile.RelaxationRates)):
-                for HField in range(len(self.B0HFields[AA][RelaxRate])):
-                    yRateMesHF[RelaxRate].append(self.HFdata[AA][RelaxRate][HField][1])
-                    yRateErrMesHF[RelaxRate].append(self.HFdata[AA][RelaxRate][HField][2])
-                    xB0HF[RelaxRate].append(self.B0HFields[AA][RelaxRate][HField])
-                    ResiHF[RelaxRate].append(self.HFdata[AA][RelaxRate][HField][1] - self.RelaxFunc[RelaxRate](self.B0HFields[AA][RelaxRate][HField], self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA][1])[0])
-                        
-                            
-            minLF = min(self.B0LFields[AA])
-            maxHF = 25.0
-            xFields = np.logspace(np.log(minLF)/np.log(10.), np.log(maxHF)/np.log(10.), 100)
-            xFieldsHF = np.linspace(8., maxHF, 100)
-            for RelaxRate in range(len(ParamFile.RelaxationRates)):
-                if RelaxRate == self.PositionR1:
-                    yback = [self.RelaxFunc[self.PositionR1](B0, self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA][1])[0] for B0 in xFields]
-                    FigOut.PlotR1(self, xB0HF[self.PositionR1], ResiHF[self.PositionR1], yRateMesHF[self.PositionR1], yRateErrMesHF[self.PositionR1], yback, xFields, AA)
+            for RelaxRate in ParamFile.RelaxationRates:
+                if RelaxRate == 'R1':
+                    FigOut.PlotR1(self, pdf_rates['R1'], AA)
                 else:
-                    yback = [self.RelaxFunc[RelaxRate](B0, self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA][1])[0] for B0 in xFieldsHF]
-                    FigOut.PlotRate(self, xB0HF[RelaxRate], ResiHF[RelaxRate], yRateMesHF[RelaxRate], yRateErrMesHF[RelaxRate], ParamFile.RelaxationRates[RelaxRate], yback, xFieldsHF, AA)
-                
+                    FigOut.PlotRate(self, pdf_rates[RelaxRate], RelaxRate, AA)
+                    
             print("")
                 
-
+        #close all the pdf figures
+        for RelaxRate in ParamFile.RelaxationRates:
+            pdf_rates[RelaxRate].close()
+        pdf_trajectories.close()
+        pdf_correlations.close()
+            
+            
         self.WriteResult()
 
     def WriteResult(self):
-        LAAList = len(self.AAList)
+        r = list(self.HF_data.keys())[0]
+        b = list(self.HF_data[r].keys())[0]
+        AAList = list(self.HF_data[r][b].keys())
         
         print("")
         print("Writing final results...")
         
-        
-        
-        #Put together figures already done
-        F = self.directoryName + "/FittingResults"
-        if len(self.AAList) > 1:
-            FigOut.Convert(F + "/Correlations", "AllCorrelations.pdf", "png", False)
-            FigOut.Convert(F + "/Trajectories", "AllTrajectories.pdf", "png", False)
-        
-        for AA in range(len(self.AAList)):
-            F1 = F + "/Intensities/Residue" + str(self.AAList[AA])
-            FigOut.Convert(F1, "AllDecays_Residue" + str(self.AAList[AA]) + ".pdf", "png", True)
-            
-        
-        dirFigs = self.directoryName + "/PlotParameters"
+        dirFigs = self.directory_name + "/PlotParameters"
         os.makedirs(dirFigs)
         
-        Out.WriteMCMCParam(self)        #file containing the parameters of the spectral density function extracted from the MCCM
+        Out.WriteMCMCParam(self, AAList)        #file containing the parameters of the spectral density function extracted from the MCMC
 
         #Draw the Chi2
-        AllChi2 = [[] for i in self.AAList]
-        for AA in range(LAAList):
-            AllChi2[AA] = FitF.Chi2TOT(self.MCMCparam[AA][0][:-1], self.FinalSimulatedIntensities[AA], self.Intensities[AA], self.HFdata[AA], self.B0HFields[AA], self.TauC, self.OtherInputs[AA][1])
+        AllChi2 = {}
+        for AA in AAList:
+            AllChi2[AA] = FitF.Chi2TOT(self.MCMCparam[AA][0][:-1], self.FinalSimulatedIntensities[AA], self.ScalingIntensities[AA], self.Intensities,
+                                       self.Err_Int, self.HF_data, self.HF_err, self.TauC, self.OtherInputs[AA], AA)
+        FigOut.PlotChi2(dirFigs, AllChi2)
 
-        FigOut.PlotChi2(dirFigs, AllChi2, self.AAList)
-
-        #Draw the spetral density function parameters
-        for param in range(len(self.TotParam)):
-            paramForPlot = [self.MCMCparam[AA][0][param] for AA in range(len(self.AAList))]
-            ErrForPlot = [(self.MCMCparam[AA][1][param]+self.MCMCparam[AA][2][param])/2.0 for AA in range(len(self.AAList))]
-            FigOut.PlotDynParam(dirFigs, paramForPlot, ErrForPlot, self.TotParam[param], self.AAList)
-            
-            
+        #Draw the spectral density function parameters
+        for count, param in enumerate(self.TotParam):
+            FigOut.PlotDynParam(dirFigs, self.MCMCparam, param, count)
 
         #Write the LF R1
         Out.WriteLFR1(self)        #file containing the scaling factors for intensities, back-calculated and fitted low field R1
-             
 
-
-        if len(self.AAList) > 1:
-            F = self.directoryName + "/FitAllResidues/"
-            for Rate in range(len(ParamFile.RelaxationRates)):
-                F1 = F + str(ParamFile.RelaxationRates[Rate])
-                FigOut.Convert(F1, "All" + str(ParamFile.RelaxationRates[Rate]) + ".pdf", "png", True)
-
-
-                        
-#Write the PDB files
+        #Write the PDB files
         if self.checkPDB:
             Out.WritePDB(self, AllChi2)
-                
 
         print("    Writing results: Done")
         print("")
+        
+        try:
+            os.system('rm *.so')
+        except:
+            pass
         
         end = time.strftime("%H") + "H" + time.strftime("%M")
         print("Started at: " + self.begin)
@@ -969,8 +823,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     GUI(root)
     root.mainloop()
-    
-    
-    
-    
-    
