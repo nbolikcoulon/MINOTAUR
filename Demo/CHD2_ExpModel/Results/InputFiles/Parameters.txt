@@ -1,0 +1,34 @@
+CONFIRMED
+Global tumbling correlation time	5.028e-09
+Shuttling type	Constant Speed
+Number of Chains	10
+Number of MCMC steps	1000
+PDB ID	1D3Z
+Setup Path	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/ExpSetUp.txt
+Field calibration path	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/FieldCalibration.txt
+Relaxometry data path	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/RelaxometryIntensities
+Other inputs path	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/OtherInputs.txt
+p1	0.75	1.0	
+Drot	10000000000.0	100000000000.0	lk21	8.0	10.0	
+CSAfactor	0.0	2.0	
+HF data set 1	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/EtaX/EtaX_14.1.dat	EtaXY	14.1
+HF data set 2	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/EtaX/EtaX_18.8.dat	EtaXY	18.8
+HF data set 3	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/EtaZ/EtaZ_14.1.dat	EtaZ	14.
+HF data set 4	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/EtaZ/EtaZ_18.8.dat	EtaZ	18.8
+HF data set 5	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R1C/R1C_9.4_2.dat	R1	9.4
+HF data set 6	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R1C/R1C_9.4.dat	R1	9.4
+HF data set 7	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R1C/R1C_14.1_2.dat	R1	14.1
+HF data set 8	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R1C/R1C_14.1_3.dat	R1	14.1
+HF data set 9	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R1C/R1C_14.1.dat	R1	14.1
+HF data set 10	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R1C/R1C_18.8.dat	R1	18.8
+HF data set 11	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R1C/R1C_22.3.dat	R1	22.3
+HF data set 12	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R2C/R2C_9.4.dat	R2	9.4
+HF data set 13	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R2C/R2C_14.1.dat	R2	14.1
+HF data set 14	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R2C/R2C_18.8.dat	R2	18.8
+HF data set 15	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R2C/R2C_22.3_2.dat	R2	22.3
+HF data set 16	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R2C/R2C_22.3_3.dat	R2	22.3
+HF data set 17	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/R2C/R2C_22.3.dat	R2	22.3
+HF data set 18	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/Sigma/Sigma_9.4.dat	Sigma	9.4
+HF data set 19	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/Sigma/Sigma_14.1.dat	Sigma	14.1
+HF data set 20	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/Sigma/Sigma_18.8.dat	Sigma	18.8
+HF data set 21	/Users/nicolasbolik-coulon/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Input/HFRelaxationRates/Sigma/Sigma_22.3.dat	Sigma	22.3
