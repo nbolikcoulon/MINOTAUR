@@ -9,7 +9,6 @@
 #       - Dynamics parameters                        #
 #                                                    #
 ######################################################
-
 import FitFunctions as FitF
 
 import numpy as np
@@ -19,12 +18,10 @@ from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from matplotlib.ticker import MaxNLocator
 from matplotlib.backends.backend_pdf import PdfPages
-from imageio import imread
-import os, glob
 import corner
 
+import ShuttlingSimulation as ShSim
 import Parameters as ParamFile
-
 
         
 Navy = (0.0, 0.0, 0.501961)
@@ -40,23 +37,24 @@ Indigo = (0.294118, 0.0, 0.509804)
 Darkgreen = (0.0, 0.392157, 0.0)
 blue = (0.0, 0.0, 1.0)
         
-colors = [DarkCyan, "saddlebrown", Cornflowerblue, DarkOrange, Darkgreen, Deeppink, Navy, Mediumvioletred, BlueViolet, Mediumseegreen, Indigo, Mediumvioletred, blue, Crimson]
+colors = [u'#1f77b4', u'#ff7f0e', u'#2ca02c', u'#d62728', u'#9467bd', u'#8c564b', u'#e377c2', u'#7f7f7f', u'#bcbd22', u'#17becf',
+          "saddlebrown", Cornflowerblue, DarkOrange, Darkgreen, Deeppink, Navy, Mediumvioletred, BlueViolet, Mediumseegreen, Indigo, Mediumvioletred, blue, Crimson]
 for i in np.linspace(0, 1, 100):
     colors.append((i, i, i))
 
     
-def PlotFieldProfile(heights, LowerCoefs, MiddleCoefs, HigherCoefs, B0LFields, fields, directoryName):
-    yax = np.linspace(heights[0], heights[-1], num=len(heights)*100)
+def PlotFieldProfile(field_cal, LowerCoefs, MiddleCoefs, HigherCoefs, B0LFields, directoryName):
+    yax = np.linspace(min(field_cal.keys()), max(field_cal.keys()), num=len(field_cal.keys())*100)
     xax = [FitF.B0Fit(yax[i], LowerCoefs, MiddleCoefs, HigherCoefs) for i in range(len(yax))]
     fig = plt.figure(figsize=(16.18/2,5))
     ax = fig.add_subplot(111)
     plt.xlabel("field (T)", fontsize=15)
     plt.ylabel("heigth (m)", fontsize=15)
     plt.xscale('log')
-    for F in B0LFields:
-        plt.axvline(x=F, color=Darkgreen)
+    for exp in B0LFields.keys():
+        plt.axvline(x=B0LFields[exp], color=Darkgreen)
     ax.plot(xax, yax, '-b', label='Polynomial fit')
-    ax.plot(fields, heights, 'k+', label='Measured field')
+    ax.scatter(field_cal.values(), field_cal.keys(), label='Measured field')
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
     ax.legend(loc='best')
@@ -66,8 +64,7 @@ def PlotFieldProfile(heights, LowerCoefs, MiddleCoefs, HigherCoefs, B0LFields, f
     plt.close()
     
     
-    
-def FigTraj(TrajDirName, sampler, Mean, Labels, Lim, AA):
+def FigTraj(pdf, TrajDirName, sampler, Mean, Labels, Lim, AA):
     nParam = len(Mean)
     
     fig, axes = plt.subplots(nParam, 1, sharex=True)
@@ -83,12 +80,13 @@ def FigTraj(TrajDirName, sampler, Mean, Labels, Lim, AA):
         
     fig.suptitle("Residue " + str(AA))
     fig.tight_layout(h_pad=0.0)
-    figname = TrajDirName + "/line-time_Residue" + str(AA) + '.png'
-    fig.savefig(figname, format='png')
+    
+    pdf.savefig( fig )
+    plt.savefig(f'{TrajDirName}/line-time_Residue_{AA}.pdf', format='pdf')
     plt.close()
             
     
-def FigCorr(CorrDirName, samples, Mean, Labels, AA):
+def FigCorr(pdf, CorrDirName, samples, Mean, Labels, AA):
     units = [" (ms)", " (us)", " (ns)", " (ps)"]
     labelsCorr = list(Labels)
     
@@ -112,20 +110,25 @@ def FigCorr(CorrDirName, samples, Mean, Labels, AA):
             
     fig = corner.corner(samples, color = 'blue', labels=labelsCorr, quantiles = [0.16, 0.5, 0.84], show_titles=True, title_fmt=u'.2f', plot_contours = True)
     fig.gca().annotate("Residue " + str(AA), (1.0, 1.0), xycoords="figure fraction", xytext=(-20, -10), textcoords="offset points", ha="right", va="top")
-    figname = CorrDirName + "/Correlations_Residue" + str(AA) + '.png'
-    fig.savefig(figname, format='png')
-    plt.close()
     
+    pdf.savefig( fig )
+    plt.savefig(f'{CorrDirName}/Correlations_Residue_{AA}.pdf', format='pdf')
+    plt.close()
 
 
-
-def PlotChi2(dirFigs, AllChi2, AAList):
+def PlotChi2(dirFigs, AllChi2):
+    AAList = []
+    chi2_plot = []
+    for aa in AllChi2.keys():
+        AAList.append(aa)
+        chi2_plot.append(AllChi2[aa])
+    
     ind = np.arange(len(AAList))
     width = 1.0/(len(AAList)+1.0)
     
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.bar(ind+width, AllChi2, width, color = "b")
+    ax.bar(ind+width, chi2_plot, width, color = "b")
     ax.set_ylabel(r"$\chi^2$", fontsize=15)
     ax.set_xlabel('residue number', fontsize=15)
     xTickMarks = [str(i) for i in AAList]
@@ -137,19 +140,26 @@ def PlotChi2(dirFigs, AllChi2, AAList):
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
-    figname = dirFigs + "/Chi2.pdf"
-    plt.savefig(figname, format='pdf')
+    plt.savefig(f'{dirFigs}/Chi2.pdf', format='pdf')
     plt.close()
                
     
-def PlotDynParam(dirFigs, AllParam, ErrParam, parameters, AAList):
+def PlotDynParam(dirFigs, AllParam, param, param_count):
+    AAList = []
+    mean_param = []
+    err_param = []
+    for aa in AllParam.keys():
+        AAList.append(aa)
+        mean_param.append(AllParam[aa][0][param_count])
+        err_param.append((AllParam[aa][1][param_count] + AllParam[aa][2][param_count]) / 2.)
+    
     ind = np.arange(len(AAList))
     width = 1.0/(len(AAList)+1.0)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.bar(ind+width, AllParam, width, color = "b", yerr=ErrParam)
-    ax.set_ylabel(parameters, fontsize=15)
+    ax.bar(ind+width, mean_param, width, color = "b", yerr=err_param)
+    ax.set_ylabel(param, fontsize=15)
     ax.set_xlabel('residue number', fontsize=15)
     xTickMarks = [str(i) for i in AAList]
     ax.set_xticks(ind+width)
@@ -160,164 +170,218 @@ def PlotDynParam(dirFigs, AllParam, ErrParam, parameters, AAList):
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
     ax.xaxis.set_ticks_position('bottom')
     ax.yaxis.set_ticks_position('left')
-    figname = dirFigs + "/" + parameters + ".pdf"
-    plt.savefig(figname, format='pdf')
+    plt.savefig(f'{dirFigs}/{param}.pdf', format='pdf')
     plt.close()
+    
+    
+def Format_Rates_Plot(data_dict, err_dict, x_dict, AA):
+    f_x = []
+    f_data = []
+    f_err = []
+    
+    if x_dict == 'keys':
+        for x in data_dict.keys():
+            try:
+                f_data.append(data_dict[x][AA])
+                f_err.append(err_dict[x][AA])       
+                f_x.append(x)
+            except:
+                pass
+    else:
+        for x in data_dict.keys():
+            try:
+                f_data.append(data_dict[x][AA])
+                f_err.append(err_dict[x][AA])
+                f_x.append(x_dict[x][AA])
+            except:
+                pass
+        
+    return f_x, f_data, f_err
 
 
-def PlotR1(self, xB0HF, ResiHF, yRateMeasHF, yRateErrMeasHF, yback, xFields, AA):
+def Format_IntensityDecay_Plot(data_dict, err_dict, x_dict):
+    f_x = []
+    f_data = []
+    f_err = []
+    
+    if x_dict == 'keys':
+        for x in data_dict.keys():
+            if data_dict[x] != 'NA':
+                f_x.append(x)
+                f_data.append(data_dict[x])
+                f_err.append(err_dict[x])  
+    else:
+        for x in data_dict.keys():
+            if data_dict[x] != 'NA':
+                f_x.append(x_dict[x])
+                f_data.append(data_dict[x])
+                f_err.append(err_dict[x])
+        
+    return f_x, f_data, f_err
+
+
+def PlotR1(self, pdf, AA):
+    
     fig = plt.figure()
     gs = gridspec.GridSpec(2, 1, height_ratios=[1, 8])
 
     ax0 = plt.subplot(gs[0])
-    ax0.plot(xFields, [0.0 for i in xFields], color = (0.0, 0.0, 0.501961))
+    ax1 = plt.subplot(gs[1], sharex = ax0)
+    
+    ax0.axhline(0.0, color = 'k', dashes = [3, 3])
+    
+    x_data_HF, data_HF, err_HF = Format_Rates_Plot(self.HF_data['R1'], self.HF_err['R1'], 'keys', AA)
+    residuals = []
+    for c, b0 in enumerate(x_data_HF):
+        residuals.append(data_HF[c] - self.RelaxFunc['R1'](b0, self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA]))
+    
+    x_data_LF = list(self.B0LFields.values())
+    y_data_LF, y_err_LF = [], []
+    for exp in self.set_up.keys():
+        time, data, err = Format_IntensityDecay_Plot(self.Intensities[exp][AA], self.Err_Int[exp][AA], 'keys')
+        rate_fit, err_fit, pre_exp, pre_exp_err = FitF.fit_intensity_decay(time, data)
+        y_data_LF.append(rate_fit)
+        y_err_LF.append(err_fit)
+        
+    if len(x_data_HF) != 0:
+        x_back_min, x_back_max = 0.9 * min(x_data_LF), 1.1 * max(x_data_HF)
+    else:
+        x_back_min, x_back_max = 0.9 * min(x_data_LF), 30.
+    x_back = np.linspace(x_back_min, x_back_max, 100)
+    y_back = []
+    for b0 in x_back:
+        y_back.append(self.RelaxFunc['R1'](b0, self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA]))
+    
 
 #Plot back-calculated R1
-    ax1 = plt.subplot(gs[1], sharex = ax0)
-    ax1.plot(xFields, yback, color = colors[0], label='Back calculated R1')
+    ax1.plot(x_back, y_back, color = colors[0], label='Back calculated R1')
     
 #Plot fitted R1 from intensities
-    xB0LF = []
-    R1LFfittedForCurve = []
-    for i in range(len(self.R1LFDataForCurve_Fitted[AA])):
-        xB0LF.append(self.R1LFDataForCurve_Fitted[AA][i][0])
-        if self.R1LFDataForCurve_Fitted[AA][i][1] != "NA":
-            R1LFfittedForCurve.append(self.R1LFDataForCurve_Fitted[AA][i][1])
-    ax1.scatter(xB0LF, R1LFfittedForCurve, color = colors[3], label="Fitted R1 at LF")
+    ax1.errorbar(x_data_LF, y_data_LF, yerr = y_err_LF, fmt = '+', color = colors[3], label="R1 from exponential fit of intensity decay")
     
 #Plot HF measured R1
-    if len(yRateMeasHF) != 0:
-        ax0.errorbar(xB0HF, ResiHF, yerr=yRateErrMeasHF, fmt='+', color = colors[4])
-        ax1.errorbar(xB0HF, yRateMeasHF, yerr = yRateErrMeasHF, fmt='+', color = colors[4], label="Measured R1 at HF")
+    if len(x_data_HF) != 0:
+        ax0.errorbar(x_data_HF, residuals, yerr = err_HF, fmt='o', color = colors[4])
+        ax1.errorbar(x_data_HF, data_HF, yerr = err_HF, fmt='o', color = colors[4], label="Measured R1 at HF")
         
 #parameters for plot
     ax1.legend(loc='best')
     start, end = ax0.get_ylim()
     ax0.yaxis.set_ticks(np.array([-max(abs(start), abs(end)), 0.0, max(abs(start), abs(end))]))
     plt.xscale('log')
-    plt.xlim([min(xB0LF)-0.1, 25.0])
+    plt.xlim(max(0.01, x_back_min-0.1), x_back_max * 1.1)
     axes = fig.get_axes()
     axes[0].set_ylabel("residuals")
     axes[1].set_ylabel(r"$R_1$ ($s^{-1}$)", fontsize=15)
-    ax0.set_title(r"$R_1$ Residue " + str(self.AAList[AA]), fontsize=18)
+    ax0.set_title(r"$R_1$ Residue " + str(AA), fontsize=18)
     plt.xlabel("field (T)", fontsize=15)
     ax0.xaxis.set_ticks_position('bottom')
     ax0.yaxis.set_ticks_position('left')
     ax1.xaxis.set_ticks_position('bottom')
     ax1.yaxis.set_ticks_position('left')
     fig.tight_layout(h_pad=0.0)
-    Figname = self.directoryName + "/FitAllResidues/R1/R1_Residue" + str(self.AAList[AA])
-    plt.savefig(Figname + ".pdf", format='pdf')
-    plt.savefig(Figname + ".png", format='png')
+    
+    pdf.savefig( fig )
     plt.close()
 
 
-
-def PlotRate(self, xB0HF, ResiHF, yRateMesHF, yRateErrMesHF, RelaxType, yback, xFields, AA):
+def PlotRate(self, pdf, RelaxRate, AA):
     fig = plt.figure()
     gs = gridspec.GridSpec(2, 1, height_ratios=[1, 8])
                     
     ax0 = plt.subplot(gs[0])
     ax1 = plt.subplot(gs[1], sharex = ax0)
                     
-    ax0.plot(xFields, [0.0 for i in xFields], color = (0.0, 0.0, 0.501961))
+    ax0.axhline(0.0, color = 'k', dashes = [3, 3])
+    
+    x_data_HF, data_HF, err_HF = Format_Rates_Plot(self.HF_data[RelaxRate], self.HF_err[RelaxRate], 'keys', AA)
+    residuals = []
+    for c, b0 in enumerate(x_data_HF):
+        residuals.append(data_HF[c] - self.RelaxFunc[RelaxRate](b0, self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA]))
+    
+    if len(x_data_HF) != 0:
+        x_back_min, x_back_max = 0.9 * min(x_data_HF), 1.1 * max(x_data_HF)
+    else:
+        x_back_min, x_back_max = 9., 30.
+    x_back = np.linspace(x_back_min, x_back_max, 100)
+    y_back = []
+    for b0 in x_back:
+        y_back.append(self.RelaxFunc[RelaxRate](b0, self.MCMCparam[AA][0][:-1], self.TauC, self.OtherInputs[AA]))
 
 #Plot back-calculated rate
-    ax1.plot(xFields, yback, color = colors[0], label='Back calculated ' + str(RelaxType))
+    ax1.plot(x_back, y_back, color = colors[0], label=f'Back calculated {RelaxRate}')
     
 #Plot HF measured rate
-    if len(yRateMesHF) != 0:
-        ax0.errorbar(xB0HF, ResiHF, yerr=yRateErrMesHF, fmt='+', color = (0.0, 0.392157, 0.0))
-        ax1.errorbar(xB0HF, yRateMesHF, yerr = yRateErrMesHF, fmt='+', color = colors[1], label="Measured " + str(RelaxType) + " at HF")
+    if len(x_data_HF) != 0:
+        ax0.errorbar(x_data_HF, residuals, yerr=err_HF, fmt='+', color = (0.0, 0.392157, 0.0))
+        ax1.errorbar(x_data_HF, data_HF, yerr = err_HF, fmt='+', color = colors[1], label=f'Measured {RelaxRate} at HF')
         
 #parameters for plot
     ax1.legend(loc='best')
     start, end = ax0.get_ylim()
     ax0.yaxis.set_ticks(np.array([-max(abs(start), abs(end)), 0.0, max(abs(start), abs(end))]))
     plt.xlabel("field (T)", fontsize=15)
-    # if len(xB0HF) != 0:
-    #     plt.xlim([min(min(xB0HF)*0.9, 8.0), max(max(xB0HF)*1.1, 25.0)])
-    # else:
-    #     plt.xlim([8.0, 25.0])
-        # 
-    # minY = min(yback)
-    # maxY = max(yback)
-    # plt.ylim(minY*0.8, maxY*1.2)
         
     axes = fig.get_axes()
     axes[0].set_ylabel("residuals")
-    axes[1].set_ylabel(str(RelaxType) + r" ($s^{-1}$)", fontsize=15)
+    axes[1].set_ylabel(RelaxRate + r" ($s^{-1}$)", fontsize=15)
     fig.tight_layout(h_pad=0.0)
-    ax0.set_title(str(RelaxType) + " of residue " + str(self.AAList[AA]), fontsize=18)
+    ax0.set_title(f"{RelaxRate} of residue {AA}", fontsize=18)
     ax0.xaxis.set_ticks_position('bottom')
     ax0.yaxis.set_ticks_position('left')
     ax1.xaxis.set_ticks_position('bottom')
     ax1.yaxis.set_ticks_position('left')
-    Figname = self.directoryName + "/FitAllResidues/" + str(RelaxType) + "/Measured" + str(RelaxType) + "_VS_BackCalculated" + str(RelaxType) + "_Residue" + str(self.AAList[AA])
-    plt.savefig(Figname + ".pdf", format='pdf')
-    plt.savefig(Figname + ".png", format='png')
+    
+    pdf.savefig( fig )
     plt.close()
-                    
-
     
     
+def ScalingFactor(SimulatedIntensity, IntensityRelaxometry, ErrIntensity):
+    
+    ScalingNum = 0.0
+    ScalingDen = 0.0
+    for vc in range(len(SimulatedIntensity)):
+        ScalingNum += IntensityRelaxometry[vc]*SimulatedIntensity[vc]/(ErrIntensity[vc])**2
+        ScalingDen += (SimulatedIntensity[vc]/ErrIntensity[vc])**2
+            
+    return ScalingNum/ScalingDen
     
     
+def PlotIntensities(self, FigIntensitiesFolder, AA):
     
-def PlotIntensities(self, BackIntensities, FigIntensitiesFolder, IntensitiesForPlot, IntensitiesErrForPlot, DelaysForPlot, DelaysForPlot2, AA):
-    for LF in range(len(self.B0LFields[AA])):
-        figname = FigIntensitiesFolder + "/Residue" + str(self.AAList[AA]) + "_" + str(round(self.B0LFields[AA][LF], 2))
+    pdf = PdfPages(f'{FigIntensitiesFolder}/Intensity_decays_Residue_{AA}.pdf')
+    
+    for exp in self.set_up.keys():
         
-        t = 0
-        n = 2
-        while t == 0:
-            if os.path.exists(figname + ".ps"):
-                figname = figname + "_" + str(n)
-                n += 1
-            else:
-                t = 1
+        time, data, err = Format_IntensityDecay_Plot(self.Intensities[exp][AA], self.Err_Int[exp][AA], 'keys')
+        time_scaling = np.asarray(time) + self.set_up[exp]['d22'] + self.set_up[exp]['WTLF']
+        rate_fit, err_fit, pre_exp, pre_exp_err = FitF.fit_intensity_decay(time, data)
+        
+        max_vc = 1.2 * max(self.set_up[exp]['vc'])
+        x_back = np.linspace(0., max_vc, 100)
+        x_back_calc = x_back + self.set_up[exp]['d22'] + self.set_up[exp]['WTLF']
+        y_back = ShSim.PropCalDiag_ForPlot(np.asarray(self.MCMCparam[AA][0][:-1]), self.TauC, self.OtherInputs[AA], self.MagField, self.Increment,
+                                           self.shuttling_fields, self.shuttling_delays, self.set_up, self.B0LFields, ParamFile.PositionAuto, x_back_calc, exp)
+        y_back_exp_fit = FitF.exp(x_back, rate_fit, pre_exp)
+        
+        back_for_scaling = ShSim.PropCalDiag_ForPlot(np.asarray(self.MCMCparam[AA][0][:-1]), self.TauC, self.OtherInputs[AA], self.MagField, self.Increment,
+                                                     self.shuttling_fields, self.shuttling_delays, self.set_up, self.B0LFields, ParamFile.PositionAuto, time_scaling, exp)
+        scaling = ScalingFactor(back_for_scaling, data, err)
 
         
         fig, ax = plt.subplots()
-        ax.plot(DelaysForPlot2[LF], BackIntensities[LF], color = colors[1], label="Simulated intensity decay")
-        ax.errorbar(DelaysForPlot[LF], IntensitiesForPlot[LF], yerr = IntensitiesErrForPlot[LF], fmt = 'o', color = colors[0], label="Measured intensities")
+        ax.plot(x_back, scaling * y_back, color = colors[1], label="Intensity decay from MCMC simulation")
+        ax.plot(x_back, y_back_exp_fit, color = colors[2], dashes = [3, 3], label="Exponential fit")
+        ax.errorbar(time, data, yerr = err, fmt = 'o', color = colors[0], label="Measured intensities")
         
         ax.legend(loc='best')
-        plt.title("Intensity decay for residue " + str(self.AAList[AA]) + " at " + str(round(self.B0LFields[AA][LF], 2)) + " T", fontsize=18)
+        plt.title(f"Intensity decay for residue {AA} at {round(self.B0LFields[exp], 2)} T", fontsize=18)
         plt.xlabel("VC time (s)", fontsize=15)
         plt.ylabel("Intensity", fontsize=15)
         ax.xaxis.set_ticks_position('bottom')
         ax.yaxis.set_ticks_position('left')
-        plt.savefig(figname + ".pdf", format='pdf')
-        plt.savefig(figname + ".png", format='png')
-        plt.close()
-    
-    
-    
-    
-    
-def plotImage(folder, file):
-    im = imread(os.path.join(folder, file)).astype(np.float32) / 255
-    plt.imshow(im)
-    a = plt.gca()
-    a.get_xaxis().set_visible(False)
-    a.get_yaxis().set_visible(False)
-    
-    
-    
-    
-def Convert(Folder, OutputName, Format, Remove):
-    pp = PdfPages(Folder + "/" + OutputName)
-    files = glob.glob(Folder + '/*.' + Format)
-    plt.clf()
-    for i in range(len(files)):
-        plotImage(Folder, files[i])
-        pp.savefig(plt.gcf())
-        plt.clf()
-
-    pp.close()
         
-    if Remove:
-        for f in files:
-            os.remove(f)
-
+        pdf.savefig( fig )
+        plt.close()
+        
+    pdf.close()
