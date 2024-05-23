@@ -1,0 +1,35 @@
+CONFIRMED
+Global tumbling correlation time	5.028e-9
+Scale Data	True
+Shuttling type	Constant Speed
+Number of Chains	10
+Number of MCMC steps	1000
+PDB ID	1D3Z
+Setup Path	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/ExpSetUp.txt
+Field calibration path	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/FieldCalibration.txt
+Relaxometry data path	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/RelaxometryIntensities
+Other inputs path	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/OtherInputs.txt
+p1	0.75	1.0	
+Drot	10000000000.0	100000000000.0	lk21	8.0	10.0	
+CSAfactor	0.0	2.0	
+HF data set 1	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/EtaXY/EtaX_14.1.dat	EtaXY	14.1
+HF data set 2	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/EtaXY/EtaX_18.8.dat	EtaXY	18.8
+HF data set 3	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/EtaZ/EtaZ_14.1.dat	EtaZ	14.1
+HF data set 4	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/EtaZ/EtaZ_18.8.dat	EtaZ	18.8
+HF data set 5	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R1/R1C_9.4_2.dat	R1	9.4
+HF data set 6	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R1/R1C_9.4.dat	R1	9.4
+HF data set 7	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R1/R1C_14.1_2.dat	R1	14.1
+HF data set 8	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R1/R1C_14.1_3.dat	R1	14.1
+HF data set 9	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R1/R1C_14.1.dat	R1	14.1
+HF data set 10	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R1/R1C_18.8.dat	R1	18.8
+HF data set 11	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R1/R1C_22.3.dat	R1	22.3
+HF data set 12	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R2/R2C_9.4.dat	R2	9.4
+HF data set 13	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R2/R2C_14.1.dat	R2	14.1
+HF data set 14	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R2/R2C_18.8.dat	R2	18.8
+HF data set 15	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R2/R2C_22.3_2.dat	R2	22.3
+HF data set 16	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R2/R2C_22.3_3.dat	R2	22.3
+HF data set 17	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/R2/R2C_22.3.dat	R2	22.3
+HF data set 18	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/Sigma/Sigma_9.4.dat	Sigma	9.4
+HF data set 19	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/Sigma/Sigma_14.1.dat	Sigma	14.1
+HF data set 20	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/Sigma/Sigma_18.8.dat	Sigma	18.8
+HF data set 21	/Users/nbc/Documents/ProjetPerso/MINOTAUR/CleanedVersion/V2_0/Demo/CHD2_ExpModel/Results/InputFiles/HFRelaxationRates/Sigma/Sigma_22.3.dat	Sigma	22.3
