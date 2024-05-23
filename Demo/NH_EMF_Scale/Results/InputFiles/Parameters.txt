@@ -1,0 +1,24 @@
+CONFIRMED
+Global tumbling correlation time	4.93e-9
+Scale Data	True
+Shuttling type	Constant Speed
+Number of Chains	10.0
+Number of MCMC steps	3000.0
+PDB ID	1D3Z
+Setup Path	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/ExpSetUp.txt
+Field calibration path	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/FieldCalibration.txt
+Relaxometry data path	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/RelaxometryIntensities
+Other inputs path	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/OtherInputs.txt
+Sf2	0.5	1.0	Ss2	0.5	1.0	
+tau_f	1e-12	1e-11	tau_s	1e-11	1e-08	
+
+HF data set 1	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/R1/R1_14.1T	R1	14.1
+HF data set 2	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/R1/R1_14.1T_2	R1	14.1
+HF data set 3	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/R1/R1_18.8T	R1	18.8
+HF data set 4	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/R1/R1_22.3T	R1	22.3
+HF data set 5	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/R2/R2_14.1T	R2	14.1
+HF data set 6	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/R2/R2_18.8T	R2	18.8
+HF data set 7	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/R2/R2_22.3T	R2	22.3
+HF data set 8	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/Sigma/NOE_14.1T	Sigma	14.1
+HF data set 9	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/Sigma/NOE_18.8T	Sigma	18.8
+HF data set 10	/Users/nbc/Documents/ProjetPerso/MINOTAUR/MINOTAUR/Results/Ubi_NH_JEMF/InputFiles/HFRelaxationRates/Sigma/NOE_22.3T	Sigma	22.3
