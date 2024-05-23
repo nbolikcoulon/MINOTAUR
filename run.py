@@ -14,7 +14,6 @@ class ChooseFolder(tk.Frame):
         
         self.master = master
         
-        
         self.gui()
         
         
@@ -37,7 +36,6 @@ class ChooseFolder(tk.Frame):
         self.master.title("Folder for Expressions")
         self.master.geometry("400x75")
         self.grid(row=1, column=2)
-
         
         self.Folder = tk.Button(self, text="Browse folder containing expressions", command = lambda: BrowseFolder(self))
 
@@ -48,16 +46,29 @@ class ChooseFolder(tk.Frame):
         self.Start.grid(row=1, column=0)
         self.Quit.grid(row=1, column=1)
         
-        if len(sys.argv) > 1:
-            folder = str(sys.argv[1])
-            os.system("python " + folder + "/setup.py build_ext --inplace")
-            os.system("python " + folder + "/setup.py build_ext --inplace")
-            os.system("python MINOTAUR.py " + folder)
-            
-            sys.exit()
-            
 
 if __name__ == "__main__":
+    if len(sys.argv) > 4:
+        print('Too many arguments.')
+        sys.exit()
+        
+    if len(sys.argv) > 1:
+        folder = str(sys.argv[1])
+        os.system("python " + folder + "/setup.py build_ext --inplace")
+        os.system("python " + folder + "/setup.py build_ext --inplace")
+        
+        if len(sys.argv) == 2:
+            os.system(f"python MINOTAUR.py {folder}")
+            sys.exit()
+            
+        if len(sys.argv) == 3:
+            os.system(f"python MINOTAUR.py {folder} {sys.argv[2]}")
+            sys.exit()
+            
+        if len(sys.argv) == 4:
+            os.system(f"python MINOTAUR.py {folder} {sys.argv[2]} {sys.argv[3]}")
+            sys.exit()
+            
     root1 = tk.Tk()
     ChooseFolder(root1)
     root1.mainloop()
