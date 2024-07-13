@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter.filedialog import askdirectory
 
 import os
+import platform
 import sys
 
 
@@ -27,9 +28,16 @@ class ChooseFolder(tk.Frame):
             
         def RUN(self):
             folder = self.ChosenFolder
-            os.system("python " + folder + "/setup.py build_ext --inplace")
-            os.system("python " + folder + "/setup.py build_ext --inplace")
-            os.system("python MINOTAUR.py " + folder)
+            
+            python_version = int(float(platform.python_version()[0]))
+            if python_version > 2:
+                os.system(f"python {folder}/setup.py build_ext --inplace")
+                os.system(f"python {folder}/setup.py build_ext --inplace")
+                os.system(f"python MINOTAUR.py {folder}")
+            else:
+                os.system(f"python3 {folder}/setup.py build_ext --inplace")
+                os.system(f"python3 {folder}/setup.py build_ext --inplace")
+                os.system(f"python3 MINOTAUR.py {folder}")
             
             sys.exit()
         

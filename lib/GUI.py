@@ -213,7 +213,7 @@ def declare_gui(self):
 
     self.Shuttling_TYPE = tk.StringVar()
     self.Shuttling_TYPE.set("Type of shuttling")
-    self.shuttling_type = tk.OptionMenu(self.param, self.Shuttling_TYPE, "Constant Speed", "Constant Acceleration")
+    self.shuttling_type = tk.OptionMenu(self.param, self.Shuttling_TYPE, "Constant Speed", "Constant Acceleration", "Bruker 2024 design")
     
     self.number_mcmc_steps_entry = new_entry(self, "MCMC - Number of steps", width=25)
     self.number_walker_entry = new_entry(self, "MCMC - Number of chains", width=25)
@@ -276,12 +276,17 @@ def set_gui(self, previous_set_up):
         
     """
     no_error = True
-    for entry in ['tc', 'data_scaling', 'shuttling_type', 'n_walker', 'n_mcmc', 'pdb', 'OrderParam', 'CorrTimes', 'others']:
+    for entry in ['tc', 'data_scaling', 'shuttling_type', 'n_walker', 'n_mcmc', 'OrderParam', 'CorrTimes', 'others']:
         try:
             previous_set_up[entry]['set function'](previous_set_up[entry]['entry'],
                                                    previous_set_up[entry]['data'])
         except:
             no_error = False
+    try:
+        previous_set_up[entry]['set function'](previous_set_up['pdb']['entry'],
+                                               previous_set_up['pdb']['data'])
+    except:
+        pass
     for entry in ['exp_setup', 'field_cal', 'int_relaxometry', 'input_file']:
         if os.path.exists(previous_set_up[entry]['data'][1]):
             previous_set_up[entry]['text config'].config(text=os.path.basename(previous_set_up[entry]['data'][1]))

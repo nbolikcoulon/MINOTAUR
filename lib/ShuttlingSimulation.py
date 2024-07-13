@@ -17,6 +17,115 @@ import FitFunctions as FitF
 from _RelaxMat import RelaxMat as RM
 
 
+def make_delay_list_constant_speed(set_up, positions):
+    """
+    creates the delay list in the case of a constant speed shuttling
+
+    Parameters
+    ----------
+    set_up : TYPE: dictionnary
+        DESCRIPTION: experimental setup for one relaxometry experiment.
+    positions : TYPE: array
+        DESCRIPTION: positions at which the propagator will be calculated.
+
+    Returns
+    -------
+    delays : TYPE: dictionnary
+        DESCRIPTION: delays from successive positions.
+
+    """
+    speed_up = set_up['height'] / set_up['SLF']
+    speed_down = set_up['height'] / set_up['SHF']
+    
+    delays_up = [positions[0] / speed_up]
+    delays_down = [positions[0] / speed_down]
+    for counter, p in enumerate(positions[1:]):
+        if p > set_up['height']:
+            break
+        else:
+            delays_up.append( (positions[counter+1] - positions[counter]) / speed_up )
+            delays_down.append( (positions[counter+1] - positions[counter]) / speed_down )
+            
+    return delays_up, delays_down
+
+
+def make_delay_list_constant_acceleration(set_up, positions):
+    """
+    creates the delay list in the case of a constant acceleration shuttling    
+
+    Parameters
+    ----------
+    set_up : TYPE: dictionnary
+        DESCRIPTION: experimental setup for one relaxometry experiment.
+    positions : TYPE: array
+        DESCRIPTION: positions at which the propagator will be calculated.
+
+    Returns
+    -------
+    delays : TYPE: dictionnary
+        DESCRIPTION: delays from successive positions.
+
+    """
+    acceleration_up = 4.0*set_up['height'] / set_up['SLF']**2
+    acceleration_down = 4.0*set_up['height'] / set_up['SHF']**2
+    vmax_up = 2.0*set_up['height'] / set_up['SLF']
+    vmax_down = 2.0*set_up['height'] / set_up['SHF']
+    delays_up, delays_down = [], []
+    time_span_up_1, time_span_down_1 = 0., 0.
+    p_0 = 0.
+    t0_halfway = True
+    
+    for p in positions:
+        if p > set_up['height']:
+            break
+        
+        dp = p - p_0
+        
+        #First half of the trajectory: h(t) = 1/2 a t^2
+        if p < set_up['height'] / 2.:
+            dt_up = -time_span_up_1 + np.sqrt( time_span_up_1**2 + 2.*dp/acceleration_up )
+            dt_down = -time_span_down_1 + np.sqrt( time_span_down_1**2 + 2.*dp/acceleration_down )
+            
+            time_span_up_1 += dt_up
+            time_span_down_1 += dt_down
+            p_0 = p
+            
+        #Second half of the trajectory: h(t) = -1/2 a t^2 + Vmax t + H/2
+        else:
+            if t0_halfway:
+                t0_halfway = False
+                
+                if p_0 < set_up['height'] / 2.:
+                    dt_up_finish = -time_span_up_1 + np.sqrt( time_span_up_1**2 + 2.*(set_up['height']/2. - p_0)/acceleration_up )
+                    dt_down_finish = -time_span_down_1 + np.sqrt( time_span_down_1**2 + 2.*(set_up['height']/2. - p_0)/acceleration_down )
+                    dp_0 = set_up['height']/2. - p_0
+                else:
+                    dt_up_finish, dt_down_finish = 0., 0.
+                    dp_0 = 0.
+
+                dt_up = dt_up_finish + vmax_up / acceleration_up - np.sqrt( (vmax_up/acceleration_up)**2 - 2.*(dp - dp_0)/acceleration_up )
+                dt_down = dt_down_finish + vmax_down / acceleration_down - np.sqrt( (vmax_down/acceleration_down)**2 - 2.*(dp - dp_0)/acceleration_down )
+                time_span_up_2 = dt_up
+                time_span_down_2 = dt_down
+                
+            else:
+                if (time_span_up_2 - vmax_up/acceleration_up)**2 - 2.*dp/acceleration_up >= 0.:
+                    dt_up = -time_span_up_2 + vmax_up/acceleration_up - np.sqrt( (time_span_up_2 - vmax_up/acceleration_up)**2 - 2.*dp/acceleration_up )
+                    dt_down = -time_span_down_2 + vmax_down/acceleration_down - np.sqrt( (time_span_down_2 - vmax_down/acceleration_down)**2 - 2.*dp/acceleration_down )
+                else:
+                    dt_up = set_up['SLF'] - time_span_up_2 - time_span_up_1
+                    dt_down = set_up['SHF'] - time_span_down_2 - time_span_up_1
+                
+                time_span_up_2 += dt_up
+                time_span_down_2 += dt_down
+            p_0 = p
+        delays_up.append(dt_up)
+        delays_down.append(dt_down)
+        
+    return delays_up, delays_down
+
+
+
 def make_field_list(self, increment):
     """
     make a single field list for all the experiments:
@@ -43,52 +152,28 @@ def make_field_list(self, increment):
     """
     #get all the positions along the trajectory
     all_heights = [self.set_up[exp]['height'] for exp in self.set_up.keys()]
-    max_height = max(all_heights)
+    # max_height = max(all_heights)
     
-    positions =  np.arange(increment, max_height, increment)
+    positions = np.arange(increment, self.tunnel_position, increment)
     for h in all_heights:
-        positions = np.append(positions, h)
+        if h not in positions:
+            positions = np.append(positions, h)
     positions = np.sort(positions)
     
     #compute field at each positions
-    field_list = [FitF.Calc_B0(p, self.B0_cal_coeff) for p in positions]
+    field_list = [FitF.Calc_B0(p, self.B0_cal_coeff, self.tunnel_position, self.tunnel_field) for p in positions]
     
     #get the delay between sucessive positions
     delays = {'up': {}, 'down': {}}
-    if self.shuttling_type == "Constant Speed":
-        for exp in self.set_up.keys():
-            speed_up = self.set_up[exp]['height'] / self.set_up[exp]['SLF']
-            speed_down = self.set_up[exp]['height'] / self.set_up[exp]['SHF']
+    for exp in self.set_up.keys():
+        if self.shuttling_type == "Constant Speed":
+            delays['up'][exp], delays['down'][exp] = make_delay_list_constant_speed(self.set_up[exp], positions)
+        
+        elif self.shuttling_type == "Constant Acceleration":
+            delays['up'][exp], delays['down'][exp] = make_delay_list_constant_acceleration(self.set_up[exp], positions)
             
-            delays['up'][exp] = [positions[0] / speed_up]
-            delays['down'][exp] = [positions[0] / speed_down]
-            for counter, p in enumerate(positions[1:]):
-                if p > self.set_up[exp]['height']:
-                    break
-                else:
-                    delays['up'][exp].append( (positions[counter+1] - positions[counter]) / speed_up )
-                    delays['down'][exp].append( (positions[counter+1] - positions[counter]) / speed_down )
-    else:
-        for exp in self.set_up.keys():
-            acceleration_up = 4.0*self.set_up[exp]['height'] / self.set_up[exp]['SLF']**2
-            acceleration_down = 4.0*self.set_up[exp]['height'] / self.set_up[exp]['SHF']**2
-
-            delays['up'][exp] = []
-            delays['down'][exp] = []
-            for p in positions:
-                if p > self.set_up[exp]['height']:
-                    break
-                else:
-                    if p < self.set_up[exp]['height'] / 2.:
-                        dt_up = np.sqrt(2. * p / acceleration_up)
-                        dt_down = np.sqrt(2. * p / acceleration_up)
-                    else:
-                        dt_up = np.sqrt(2. / acceleration_up * (4.*self.set_up[exp]['height'] / self.set_up[exp]['SLF'] -
-                                                          p - self.set_up[exp]['height']))
-                        dt_down = np.sqrt(2. / acceleration_down * (4.*self.set_up[exp]['height'] / self.set_up[exp]['SHF'] -
-                                                          p - self.set_up[exp]['height']))
-                delays['up'][exp].append(dt_up)
-                delays['down'][exp].append(dt_down)
+        elif self.shuttling_type == "Bruker 2024 design":
+            delays['up'][exp], delays['down'][exp] = make_delay_list_constant_acceleration(self.set_up[exp], positions)
         
     return field_list, delays
 
@@ -329,9 +414,6 @@ def optimize_shuttling_increment(self, PosAuto):
     print()
     print("Optimizing shuttling increment...")
     #initialize
-    lowest_field_idx = list(self.B0_low_field.values()).index(min(list(self.B0_low_field.values())))
-    exp_lowest_field = list(self.B0_low_field.keys())[lowest_field_idx]
-    
     RandomParam = [[] for i in range(10)]
     for i in range(10):
         for name in self.bonds_starting_point.keys():
@@ -340,15 +422,15 @@ def optimize_shuttling_increment(self, PosAuto):
                 
     Increment = 1e-3    #starting increment in meter
     field_list, delays = make_field_list(self, Increment)
-    
-    sub_setup = {exp_lowest_field: self.set_up[exp_lowest_field]}
-    sub_B0LF = {exp_lowest_field: self.B0_low_field[exp_lowest_field]}
-    
-    ExpVal_Init = []
     aa = list(self.other_inputs.keys())[0]
-    for param in RandomParam:
-        ExpVal_Init_Full = Expected_Values(param, self.TauC, self.other_inputs[aa], self.Static_MagField, field_list, delays, sub_setup, sub_B0LF, PosAuto, Propagator_Diagonalization)
-        ExpVal_Init.append(ExpVal_Init_Full[exp_lowest_field][max(sub_setup[exp_lowest_field]['vc'])])
+    
+    ExpVal_Init = {exp: [] for exp in self.set_up.keys()}
+    for exp in self.set_up.keys():
+        sub_setup = {exp: self.set_up[exp]}
+        sub_B0LF = {exp: self.B0_low_field[exp]}
+        for param in RandomParam:
+            ExpVal_Init_Full = Expected_Values(param, self.TauC, self.other_inputs[aa], self.Static_MagField, field_list, delays, sub_setup, sub_B0LF, PosAuto, Propagator_Diagonalization)
+            ExpVal_Init[exp].append(ExpVal_Init_Full[exp][max(sub_setup[exp]['vc'])])
     print(f" Initial value : {Increment} m")
     
     #optimize
@@ -358,13 +440,16 @@ def optimize_shuttling_increment(self, PosAuto):
         Increment = round(Increment + 1e-3, 3)
         field_list, delays = make_field_list(self, Increment)
         
-        for counter, param in enumerate(RandomParam):
-            ExpVal_Full = Expected_Values(param, self.TauC, self.other_inputs[aa], self.Static_MagField, field_list, delays, sub_setup, sub_B0LF, PosAuto, Propagator_Diagonalization)
-            ExpVal = ExpVal_Full[exp_lowest_field][max(sub_setup[exp_lowest_field]['vc'])]
-        
-            if abs(ExpVal-ExpVal_Init[counter])/ExpVal_Init[counter] > 0.01:
-                print(f"Final used increment: {round(Increment - 1e-3, 3)} m")
-                return round(Increment - 1e-3, 3)
+        for exp in self.set_up.keys():
+            sub_setup = {exp: self.set_up[exp]}
+            sub_B0LF = {exp: self.B0_low_field[exp]}
+            for counter, param in enumerate(RandomParam):
+                ExpVal_Full = Expected_Values(param, self.TauC, self.other_inputs[aa], self.Static_MagField, field_list, delays, sub_setup, sub_B0LF, PosAuto, Propagator_Diagonalization)
+                ExpVal = ExpVal_Full[exp][max(sub_setup[exp]['vc'])]
+            
+                if abs(ExpVal-ExpVal_Init[exp][counter])/ExpVal_Init[exp][counter] > 0.01:
+                    print(f"Final used increment: {round(Increment - 1e-3, 3)} m")
+                    return round(Increment - 1e-3, 3)
             
         print(f" Updated value {count} : {Increment} m")
         

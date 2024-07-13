@@ -83,10 +83,10 @@ class MINOTAUR(tk.Frame):
         ReadInput.read_gui_parameters(self)
 
         #Field calibration
-        field_cal, self.B0_cal_coeff, self.Static_MagField = ReadInput.read_field_calibration(self.field_calibration)
+        field_cal, self.B0_cal_coeff, self.Static_MagField, self.tunnel_position, self.tunnel_field = ReadInput.read_field_calibration(self.field_calibration)
         
         #experimental set up
-        self.set_up = ReadInput.read_exp_setup(self.experimental_setup)
+        self.set_up = ReadInput.read_exp_setup(self.experimental_setup, self.shuttling_type, field_cal)
         ReadInput.copy_relaxometry_decays(self)
         
         #high field Files
@@ -105,9 +105,9 @@ class MINOTAUR(tk.Frame):
         ReadInput.scale_data(self)
         
         #Plot the field profile with the considered fields during relaxometry
-        self.B0_low_field = {exp: FitF.Calc_B0(self.set_up[exp]['height'], self.B0_cal_coeff) for exp in self.set_up.keys()}
-        FigOut.plot_field_profile(field_cal, self.B0_cal_coeff, self.B0_low_field, self.dir_fit_output)
-
+        self.B0_low_field = FitF.Get_B0_low_field(self.set_up, self.B0_cal_coeff, self.tunnel_position, self.tunnel_field)
+        FigOut.plot_field_profile(field_cal, self.set_up, self.B0_cal_coeff, self.B0_low_field, self.tunnel_position, self.tunnel_field, self.dir_fit_output)
+        
         #Write the Parameters file
         Out.write_gui_param(self)
         

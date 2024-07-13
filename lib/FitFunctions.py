@@ -266,12 +266,39 @@ def Fit_R1_LF(intensities, AA):
     return R1_fitted
 
 
+def detect_magnetic_tunnel(field_cal):
+    """
+    detects a potential magnetic tunnel
+
+    Parameters
+    ----------
+    field_cal : TYPE: dict
+        DESCRIPTION: matches height with measured magnetic field.
+
+    Returns
+    -------
+    tunnel_position : TYPE: float
+        DESCRIPTION: position at which the tunnel starts.
+    tunnel_field : TYPE: float
+        DESCRIPTION: field of the tunnel.
+
+    """
+    h_0, b_0 = list(field_cal.items())[1]
+    for h, b in list(field_cal.items())[2:]:
+        if b == b_0 and b < 4.0:
+            tunnel_position = h_0
+            tunnel_field = b_0
+            return tunnel_position, tunnel_field
+        h_0, b_0 = h, b
+        
+    tunnel_position = max(list(field_cal.keys()))
+    tunnel_field = field_cal[tunnel_position]
+    return tunnel_position, tunnel_field
+
+
 def calibrate_B0(field_cal):
     """
     fitting of the field within the magnet.
-    the field-gradient is divided into 3 portions for better fitting, based on
-    the two-field system developped using ferroshims creating a plateau of
-    magnetic field at 0.33T.
 
     Parameters
     ----------
@@ -280,34 +307,37 @@ def calibrate_B0(field_cal):
 
     Returns
     -------
-    list_coeff : TYPE: dictionary
-        DESCRIPTION: contains coefficient of the polynomial fits.
+    list_coeff : TYPE: list
+        DESCRIPTION: contains coefficients of the polynomial fits.
+    tunnel_position: TYPE: float
+        DESCRIPTION: position at which the tunnel starts.
+    tunnel_field : TYPE: float
+        DESCRIPTION: field of the tunnel.
 
     """
-    field_cal_high = {}
-    field_cal_middle = {}
-    field_cal_low = {}
+    tunnel_position, tunnel_field = detect_magnetic_tunnel(field_cal)
+    
+    field_cal_high, field_cal_low = {}, {}
     for h in field_cal.keys():
-        if h <= 0.47:
-            field_cal_high[h] = field_cal[h]
-        else:
-            if h <= 0.6:
-                field_cal_middle[h] = field_cal[h]
+        if h < tunnel_position:
+            if h < 0.4:
+                field_cal_high[h] = field_cal[h]
             else:
                 field_cal_low[h] = field_cal[h]
 
-    HigherCoefs = np.polyfit(list(field_cal_high.keys()), list(field_cal_high.values()), 10)
-    MiddleCoefs = np.polyfit(list(field_cal_middle.keys()), list(field_cal_middle.values()), 5)
-    LowerCoefs = np.polyfit(list(field_cal_low.keys()), list(field_cal_low.values()), 10)
+    HigherCoefs = np.polyfit(list(field_cal_high.keys()), list(field_cal_high.values()), 15)
+    if len(field_cal_low) != 0:
+        LowerCoefs = np.polyfit(list(field_cal_low.keys()), list(field_cal_low.values()), 15)
+    else:
+        LowerCoefs = [0.0]
     
     list_coeff = {'high_fields': HigherCoefs,
-                  'middle_fields': MiddleCoefs,
                   'low_fields': LowerCoefs}
+
+    return list_coeff, tunnel_position, tunnel_field
     
-    return list_coeff
     
-    
-def Calc_B0(height, list_coeffs):
+def Calc_B0(height, list_coeffs, tunnel_position, tunnel_field):
     """
     calculates B0 based on calibration results
 
@@ -315,8 +345,12 @@ def Calc_B0(height, list_coeffs):
     ----------
     height : TYPE: float
         DESCRIPTION: height in the spectometer at which the field is calculated.
-    list_coeffs : TYPE: dictionnary
+    list_coeffs : TYPE: list
         DESCRIPTION: results from the field calibration.
+    tunnel_position: TYPE: float
+        DESCRIPTION: position at which the tunnel starts.
+    tunnel_field : TYPE: float
+        DESCRIPTION: field of the tunnel.
 
     Returns
     -------
@@ -324,17 +358,13 @@ def Calc_B0(height, list_coeffs):
         DESCRIPTION: field at height.
 
     """
-    field = 0.0
+    if height >= tunnel_position:
+        return tunnel_field
     
-    if height <= 0.47:
+    field = 0.
+    if height < 0.4:
         deg = len(list_coeffs['high_fields'])
         for c, coeff in enumerate(list_coeffs['high_fields']):
-            field += coeff * math.pow(height, deg - c - 1)
-        return field
-    
-    if height <= 0.6:
-        deg = len(list_coeffs['middle_fields'])
-        for c, coeff in enumerate(list_coeffs['middle_fields']):
             field += coeff * math.pow(height, deg - c - 1)
         return field
     
@@ -342,3 +372,34 @@ def Calc_B0(height, list_coeffs):
     for c, coeff in enumerate(list_coeffs['low_fields']):
         field += coeff * math.pow(height, deg - c - 1)
     return field
+
+
+def Get_B0_low_field(setup, list_coeffs, tunnel_position, tunnel_field):
+    """
+    Calculates the low field where relaxation occurs
+
+    Parameters
+    ----------
+    setup : TYPE: dictionnary
+        DESCRIPTION: setup for the relaxometry experiments.
+    list_coeffs : TYPE: dictionnary
+        DESCRIPTION: results from the field calibration.
+    tunnel_position: TYPE: float
+        DESCRIPTION: position at which the tunnel starts.
+    tunnel_field : TYPE: float
+        DESCRIPTION: field of the tunnel.
+
+    Returns
+    -------
+    B0_low_field : TYPE: dictionnary
+        DESCRIPTION: contains the low fields where relaxation rates are recorded.
+
+    """
+    B0_low_field = {}
+    for exp in setup.keys():
+        if 'field' in setup[exp].keys():
+            B0_low_field[exp] = setup[exp]['field']
+        else:
+            B0_low_field[exp] = Calc_B0(setup[exp]['height'], list_coeffs, tunnel_position, tunnel_field)
+            
+    return B0_low_field

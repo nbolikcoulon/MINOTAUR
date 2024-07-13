@@ -39,7 +39,7 @@ for i in np.linspace(0, 1, 100):
     colors.append((i, i, i))
 
     
-def plot_field_profile(field_cal, B0_cal_coeff, B0_low_fields, directory_name):
+def plot_field_profile(field_cal, set_up, B0_cal_coeff, B0_low_fields, tunnel_position, tunnel_field, directory_name):
     """
     plots the calibration field profile, and indicates the low fields at which experiments are recorded
 
@@ -47,24 +47,33 @@ def plot_field_profile(field_cal, B0_cal_coeff, B0_low_fields, directory_name):
     ----------
     field_cal : TYPE: dictionnary
         DESCRIPTION: field vs height from the calibration file.
+    set_up : TYPE: dictionnary
+        DESCRIPTION: relaxometry setup info
     B0_cal_coeff : TYPE: dictionnary
         DESCRIPTION: result of the fit of the field calibration.
     B0_low_fields : TYPE: dictionnary
         DESCRIPTION: low fields at which experiments are recorded.
+    tunnel_position: TYPE: float
+        DESCRIPTION: position at which the tunnel starts.
+    tunnel_field : TYPE: float
+        DESCRIPTION: field of the tunnel.
     directory_name : TYPE: str
         DESCRIPTION: output directory for the figure.
         
     """
-    b0_plot = np.linspace(min(field_cal.keys()), max(field_cal.keys()), num=len(field_cal.keys())*100)
-    dist_plot = [FitF.Calc_B0(b0, B0_cal_coeff) for b0 in b0_plot]
-    
+    h_plot = list(filter(lambda x: x < tunnel_position, field_cal.keys()))
+    dist_plot = [FitF.Calc_B0(h, B0_cal_coeff, tunnel_position, tunnel_field) for h in h_plot]
+
     fig = plt.figure(figsize=(16.18/2,5))
     ax = fig.add_subplot(111)
     
-    ax.plot(dist_plot, b0_plot, '-b', label='Polynomial fit')
+    ax.plot(dist_plot, h_plot, '-b', label='Polynomial fit')
     ax.scatter(field_cal.values(), field_cal.keys(), label='Measured field')
     for exp in B0_low_fields.keys():
-        ax.axvline(x=B0_low_fields[exp], color=Darkgreen)
+        if 'field' not in set_up[exp].keys():
+            ax.axvline(x=B0_low_fields[exp], color=Darkgreen)
+        else:
+            ax.axvline(x=B0_low_fields[exp], color=Mediumseegreen)
     
     ax.set_xlabel("field (T)", fontsize=15)
     ax.set_ylabel("heigth (m)", fontsize=15)
@@ -312,9 +321,9 @@ def plot_R1(self, AA):
         y_data_LF.append(rate_fit)
         y_err_LF.append(err_fit)
         
-    x_back_min = 0.9 * min(x_data_LF)
-    x_back_max = 1.1 * max(x_data_HF) if len(x_data_HF) != 0 else 30.
-    x_back = np.linspace(x_back_min, x_back_max, 100)
+    x_back_min = np.log(0.9 * min(x_data_LF)) / np.log(10.)
+    x_back_max = np.log(1.1 * max(x_data_HF)) / np.log(10.) if len(x_data_HF) != 0 else np.log(30.) / np.log(10.)
+    x_back = np.logspace(x_back_min, x_back_max, 100)
     y_back = [self.relaxation_function['R1'](b0, self.MCMC_param[AA]['Mean'][:-1], self.TauC, self.other_inputs[AA]) for b0 in x_back]
         
     fig = plt.figure()
@@ -334,7 +343,7 @@ def plot_R1(self, AA):
     start, end = ax_residuals.get_ylim()
     ax_residuals.yaxis.set_ticks(np.array([-max(abs(start), abs(end)), 0.0, max(abs(start), abs(end))]))
     plt.xscale('log')
-    plt.xlim(max(0.01, x_back_min-0.1), x_back_max * 1.1)
+    plt.xlim(10**x_back_min, 10**x_back_max)
     ax_residuals.set_ylabel("residuals")
     ax_rate.set_ylabel(r"$R_1$ ($s^{-1}$)", fontsize=15)
     ax_residuals.set_title(r"$R_1$ Residue " + str(AA), fontsize=18)

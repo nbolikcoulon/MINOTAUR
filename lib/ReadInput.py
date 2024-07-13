@@ -172,7 +172,7 @@ def read_field_calibration(filename):
     ----------
     filename : TYPE: str
         DESCRIPTION: path to the field calibration file. Two-column file containing the height and field
-
+        
     Returns
     -------
     field_cal : TYPE: dictionnary
@@ -181,6 +181,10 @@ def read_field_calibration(filename):
         DESCRIPTION: contains the polynomial decomposition to compute the field along the sample trajectory.
     B0_HF : TYPE: float
         DESCRIPTION: static magnetic field at which relaxometry experiments are performed.
+    tunnel_position: TYPE: float
+        DESCRIPTION: position at which the tunnel starts.
+    tunnel_field : TYPE: float
+        DESCRIPTION: field of the tunnel.
         
     """
     field_cal = {}
@@ -191,18 +195,17 @@ def read_field_calibration(filename):
         
         try:
             field_cal[float(line[0])] = float(line[1])
-            
         except:
             f.close()
             break
     
-    B0_cal_coeff = FitF.calibrate_B0(field_cal)
-    B0_HF = FitF.Calc_B0(0.0, B0_cal_coeff)
+    B0_cal_coeff, tunnel_position, tunnel_field = FitF.calibrate_B0(field_cal)
+    B0_HF = FitF.Calc_B0(0.0, B0_cal_coeff, tunnel_position, tunnel_field)
         
-    return field_cal, B0_cal_coeff, B0_HF
+    return field_cal, B0_cal_coeff, B0_HF, tunnel_position, tunnel_field
         
         
-def read_exp_setup(filename):
+def read_exp_setup(filename, shuttling_type, field_cal):
     """
     reads the setup file
 
@@ -212,7 +215,7 @@ def read_exp_setup(filename):
         DESCRIPTION: path to the setup file.
         multiple-column file containing:
             1) the experiment numer
-            2) the shuttling height
+            2) the shuttling height (or shuttling field in the case of FCC)
             3) the waiting time at low field after shuttling up
             4) the waiting time at high field after shuttling down
             5) the waiting time at high field before shuttling up
@@ -221,6 +224,10 @@ def read_exp_setup(filename):
             8) the shuttling time to the high field position
             9) all the relaxation delays
     All delays have to be given in milliseconds.
+    shuttling_type : TYPE: str
+        DESCRIPTION: type of shuttling device
+    field_cal : TYPE: dictionnary
+        DESCRIPTION: matches distance with field. Required if shuttling_type is 'Bruker 2024 design'.
 
     Returns
     -------
@@ -238,20 +245,40 @@ def read_exp_setup(filename):
             exp = int(float(line[0]))
             set_up[exp] = {}
             
-            set_up[exp]['height'] = float(line[1])
-            set_up[exp]['d22'] = float(line[2]) * 1e-3
-            set_up[exp]['d25'] = float(line[3]) * 1e-3
-            set_up[exp]['WTHF'] = float(line[4]) * 1e-3
-            set_up[exp]['SLF'] = float(line[5]) * 1e-3
-            set_up[exp]['WTLF'] = float(line[6]) * 1e-3
-            set_up[exp]['SHF'] = float(line[7]) * 1e-3
-            
-            set_up[exp]['LF_times'] = {}
-            set_up[exp]['vc'] = []
-            for j in range(len(line)-8):
-                delay = float(line[j+8]) * 1e-3
-                set_up[exp]['vc'].append(delay)
-                set_up[exp]['LF_times'][delay] = set_up[exp]['d22'] + set_up[exp]['WTLF'] + delay
+            if shuttling_type == 'Bruker 2024 design':
+                if line[1] == 'FCC':
+                    set_up[exp]['field'] = float(line[2])
+                    set_up[exp]['height'] = max(list(field_cal.keys()))
+                else:
+                    set_up[exp]['height'] = float(line[2])
+                set_up[exp]['d22'] = float(line[3]) * 1e-3
+                set_up[exp]['d25'] = float(line[4]) * 1e-3
+                set_up[exp]['WTHF'] = float(line[5]) * 1e-3
+                set_up[exp]['SLF'] = float(line[6]) * 1e-3
+                set_up[exp]['WTLF'] = float(line[7]) * 1e-3
+                set_up[exp]['SHF'] = float(line[8]) * 1e-3
+                
+                set_up[exp]['LF_times'] = {}
+                set_up[exp]['vc'] = []
+                for j in range(len(line)-9):
+                    delay = float(line[j+9]) * 1e-3
+                    set_up[exp]['vc'].append(delay)
+                    set_up[exp]['LF_times'][delay] = set_up[exp]['d22'] + set_up[exp]['WTLF'] + delay
+            else:
+                set_up[exp]['height'] = float(line[1])
+                set_up[exp]['d22'] = float(line[2]) * 1e-3
+                set_up[exp]['d25'] = float(line[3]) * 1e-3
+                set_up[exp]['WTHF'] = float(line[4]) * 1e-3
+                set_up[exp]['SLF'] = float(line[5]) * 1e-3
+                set_up[exp]['WTLF'] = float(line[6]) * 1e-3
+                set_up[exp]['SHF'] = float(line[7]) * 1e-3
+                
+                set_up[exp]['LF_times'] = {}
+                set_up[exp]['vc'] = []
+                for j in range(len(line)-8):
+                    delay = float(line[j+8]) * 1e-3
+                    set_up[exp]['vc'].append(delay)
+                    set_up[exp]['LF_times'][delay] = set_up[exp]['d22'] + set_up[exp]['WTLF'] + delay
             
         except:
             f.close()
@@ -461,7 +488,7 @@ def scale_intensities(data, perform_scaling):
         DESCRIPTION: standard deviation of the recorded intensities. Equals 1 when perform_scaling=False.
 
     """
-    if perform_scaling:
+    if perform_scaling == 'True':
         average, av_2 = 0., 0.
         count = 0
         for vc in data.keys():
@@ -520,8 +547,8 @@ def scale_rates(data, aa, perform_scaling):
     
     scaled_rates = {field: {} for field in data.keys()}
     
-    if len(rate_list) > 0.:
-        if perform_scaling:
+    if len(rate_list) > 1.:
+        if perform_scaling == 'True':
             average = np.average(rate_list)
             std = np.std(rate_list)
         else:
