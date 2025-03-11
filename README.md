@@ -31,7 +31,7 @@ This new version now includes the option to scale the data to avoid one type of 
 
 $$\mathcal{D}_{scaled} = \frac{\mathcal{D} - E(\mathcal{D})}{\sigma(\mathcal{D})}$$
 
-where $E(\mathcal{D})$ and $\sigma(\mathcal{D})$ are the average and standard deviation of the experimental data $\mathcal{D}$. Thus, the average of the scaled data $\mathcal{D}_{scaled}$ is 0 and the standard deviation 0. This transformation is performed for the intensities and each rates individually (for example, longitudinal and transverse auto-relaxation rates are scaled independently).
+where $E(\mathcal{D})$ and $\sigma(\mathcal{D})$ are the average and standard deviation of the experimental data $\mathcal{D}$. Thus, the average of the scaled data $\mathcal{D}_{scaled}$ is 0 and the standard deviation 1. This transformation is performed for the intensities and each rates individually (for example, longitudinal and transverse auto-relaxation rates are scaled independently).
 
 ## Requirements
 MINOTAUR has to be run using Python 3. The following libraries need to be installed: corner, emcee, imageio, numpy, matplotlib, multiprocessing, PIL, scipy, tkinter. 
